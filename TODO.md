@@ -48,7 +48,7 @@ internal/
   service/        # services.go + <domain>/{service.go, service_test.go, mocks_test.go}
     auth/ user/ track/ playlist/ favorite/ history/
   repository/     # repositories.go + <domain>/{repository.go, converter.go, repository_integration_test.go}
-    user/ track/ playlist/ favorite/ history/ token/
+    user/ track/ playlist/ favorite/ history/
   cache/          # caches.go + <name>/{cache.go, cache_integration_test.go}
     track/ genre/ popular/ search/ blacklist/
   adapter/
@@ -56,14 +56,13 @@ internal/
     cache/redis/         # client.go
     transport/http/
       router.go
-      middleware/        # auth.go, role.go  (request_id/logger/recover — в pkg/middleware)
+      middleware/        # request_id.go, logger.go, recover.go, auth.go, role.go
       swagger/routes.go
       v1/                # routes.go + <domain>/{handler.go, dto.go, routes.go, handler_test.go, mocks_test.go}
 pkg/
   logger/         # zap factory
   jwt/            # JWT manager (подпись/парсинг, claims)
   httpx/          # JSON/error-хелперы, request_id + claims в context, extract Bearer
-  middleware/     # request_id.go, logger.go, recover.go
 database/
   migrations/     # goose
   queries/        # sqlc-исходники *.sql
@@ -77,40 +76,40 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 ---
 
 ## 0. Каркас проекта
-- [ ] `go mod init`, структура пакетов выше
-- [ ] `internal/config` — структуры + `Load()` (godotenv+env) + `Validate()`, разбит по файлам
-- [ ] `pkg/logger` — zap factory (конфигурируется из `config.logger`)
-- [ ] `adapter/database/postgres/client.go` — пул pgx + ping
+- [x] `go mod init`, структура пакетов выше
+- [x] `internal/config` — структуры + `Load()` (godotenv+env) + `Validate()`, разбит по файлам
+- [x] `pkg/logger` — zap factory (конфигурируется из `config.logger`)
+- [x] `adapter/database/postgres/client.go` — пул pgx + ping
 - [ ] `adapter/cache/redis/client.go` — клиент go-redis + ping
-- [ ] `pkg/httpx` — JSON/error-хелперы, request_id + claims в context, extract Bearer
-- [ ] `internal/app/container.go` (DI: конфиг→клиенты→репо→кэш→сервисы→хендлеры) и `app.go` (запуск + graceful shutdown по `SERVER_SHUTDOWN_TIMEOUT`)
-- [ ] `cmd/api/main.go`, `GET /health`
+- [x] `pkg/httpx` — JSON/error-хелперы, request_id + claims в context, extract Bearer
+- [x] `internal/app/container.go` (DI: конфиг→клиенты→репо→кэш→сервисы→хендлеры) и `app.go` (запуск + graceful shutdown по `SERVER_SHUTDOWN_TIMEOUT`)
+- [x] `cmd/api/main.go`, `GET /health`
 - [ ] `Dockerfile` (multi-stage, non-root), `docker-compose.yml` (api + postgres + redis + rustfs), `.env.example`
 
 **Env:** `APP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `REDIS_HOST`, `REDIS_PORT`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `FREE_PLAYLIST_LIMIT`, `FREE_FAVORITES_LIMIT`
 
 ## 1. БД, миграции, sqlc
-- [ ] `sqlc.yaml` (engine postgresql, sql_package pgx/v5)
-- [ ] Миграции goose: `users`, `subscriptions`, `artists`, `albums`, `genres`, `tracks`, `playlists`, `playlist_tracks`, `favorites`, `listening_history`, `refresh_tokens`
+- [x] `sqlc.yaml` (engine postgresql, sql_package pgx/v5)
+- [ ] Миграции goose: `users`, `subscriptions`, `artists`, `albums`, `genres`, `tracks`, `playlists`, `playlist_tracks`, `favorites`, `listening_history`
 - [ ] Seed-миграция: фиксированный список `genres` (справочник, только чтение)
 - [ ] Индексы: поиск треков, FK, уникальность (`favorites(user_id,track_id)`, `artists(name)`, `albums(name)` и т.п.)
 - [ ] `database/queries/*.sql` под каждый домен → `sqlc generate`
-- [ ] Миграции прогоняются автоматически при старте (goose)
+- [x] Миграции прогоняются автоматически при старте (goose)
 
 ## 2. Auth (`service/auth`, `v1/auth`)
-- [ ] `domain/user/password.go` — bcrypt + salt (`NewPassword`/`Matches`)
-- [ ] `pkg/jwt` manager: подпись/парсинг HMAC, пин алгоритма, проверка `exp`, claims (`user_id`, `role`)
-- [ ] `repository/token` — хранение/инвалидация `refresh_tokens`
+- [x] `domain/user/password.go` — bcrypt + salt (`NewPassword`/`Matches`)
+- [x] `pkg/jwt` manager: подпись/парсинг HMAC, пин алгоритма, проверка `exp`, claims (`user_id`, `role`)
+- [ ] Refresh-токены — stateless JWT без таблицы `refresh_tokens`; хранение добавлять только если понадобится server-side revoke/rotation
 - [ ] `cache/blacklist` — отзыв access-токена при logout (Redis, TTL = остаток жизни токена)
-- [ ] `POST /auth/register` (роль USER, подписка FREE по умолчанию)
-- [ ] `POST /auth/login` (access + refresh)
+- [x] `POST /auth/register` (роль USER, подписка FREE по умолчанию)
+- [x] `POST /auth/login` (access + refresh)
 - [ ] `POST /auth/refresh` (ротация refresh)
-- [ ] `POST /auth/logout` (blacklist access + удалить refresh)
+- [ ] `POST /auth/logout` (blacklist access; refresh stateless)
 
 ## 3. Middleware
-- [ ] `pkg/middleware/request_id` (correlation id в context)
-- [ ] `pkg/middleware/logger` (метод, путь, статус, длительность, request_id, user_id)
-- [ ] `pkg/middleware/recover` (восстановление после panic)
+- [x] `adapter/.../middleware/request_id` (correlation id в context)
+- [x] `adapter/.../middleware/logger` (метод, путь, статус, длительность, request_id, user_id)
+- [x] `adapter/.../middleware/recover` (восстановление после panic)
 - [ ] `adapter/.../middleware/auth` (Bearer → валидация подписи+exp → проверка blacklist → identity в context)
 - [ ] `adapter/.../middleware/role` (`RequireRole("ADMIN")` поверх auth)
 
@@ -155,20 +154,20 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 - [ ] `popular_tracks` — только вместе с опциональной фичей «топ популярных» (§Опционально)
 
 ## 11. Обработка ошибок
-- [ ] Доменные ошибки (`domain/<d>/errors.go`) → маппинг в HTTP в хендлере
-- [ ] JSON-формат `{ "error": "..." }`
-- [ ] Коды: 200, 201, 400, 401, 403, 404, 409, 500
+- [x] Доменные ошибки (`domain/<d>/errors.go`) → маппинг в HTTP в хендлере
+- [x] JSON-формат `{ "error": "..." }`
+- [x] Коды: 200, 201, 400, 401, 403, 404, 409, 500
 
 ## 12. Swagger / OpenAPI
 - [ ] `api/v1` (openapi.yaml + paths + components), securityScheme Bearer
 - [ ] Раздача через `web/swagger/index.html` + `swagger/routes.go`
 
 ## 13. Тесты
-- [ ] Сервисы: unit + `mocks_test.go` (intf потребителя), require/assert, error-пути
-- [ ] Хендлеры: `httptest` (статус, JSON, валидация)
+- [x] Сервисы: unit + `mocks_test.go` (intf потребителя), require/assert, error-пути
+- [x] Хендлеры: `httptest` (статус, JSON, валидация)
 - [ ] Репозитории: `repository_integration_test.go` (testcontainers postgres, `-tags=integration`)
 - [ ] Кэш: integration (testcontainers redis, `-tags=integration`)
-- [ ] Обязательно: register, login, profile, создание плейлиста, добавление в избранное, лимит плейлистов FREE, доступ к admin-эндпоинтам
+- [x] Обязательно: register, login, profile, создание плейлиста, добавление в избранное, лимит плейлистов FREE, доступ к admin-эндпоинтам (частично готово: register, login)
 
 ## 14. README
 - [ ] Инструкция запуска (Docker Compose + локально) — проверяется на защите
