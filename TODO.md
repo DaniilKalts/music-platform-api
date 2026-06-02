@@ -4,7 +4,7 @@
 
 **Архитектура — как в `rbk-school/7-week/api-service`** (Clean Architecture, один сервис). Конвенции, нейминг пакетов и тулчейн повторяем оттуда. **Ничего сверх ТЗ не добавляем** (никакого gateway, лишних доменов, Kafka и т.п.).
 
-> **Soft delete:** используем `is_active` (boolean) в `tracks`. `is_deleted` из ТЗ игнорируем.
+> **Soft delete:** используем `deleted_at` (nullable timestamptz) в `tracks`. `is_deleted` из ТЗ игнорируем.
 >
 > **Аудиофайлы:** лежат в бакете RustFS (S3). Бэкенд **не работает с S3 в коде** — `tracks.file_url` это обычная строка-ссылка на объект. Файл заливается в бакет вне API, админ передаёт готовый URL в `POST /admin/tracks`. Никакого S3 SDK и upload-эндпоинта.
 >
@@ -144,7 +144,7 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 ## 9. Admin (`v1/admin`, под `role` middleware)
 - [ ] `POST /admin/tracks` (артист/альбом — find-or-create по имени, жанр — по сид-справочнику; всё в одной транзакции)
 - [ ] `PUT /admin/tracks/{id}` (тот же find-or-create; инвалидация `track:{id}`)
-- [ ] `DELETE /admin/tracks/{id}` (soft delete: `is_active=false`; инвалидация `track:{id}`)
+- [ ] `DELETE /admin/tracks/{id}` (soft delete: `deleted_at=NOW()`; инвалидация `track:{id}`)
 - [ ] `PATCH /admin/users/{id}/subscription`
 
 ## 10. Кэш (`cache/*`, Redis)
