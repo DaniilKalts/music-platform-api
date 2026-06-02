@@ -62,7 +62,7 @@ func NewContainer(cfg *config.Config, logger *zap.Logger) (_ *Container, err err
 		cfg.JWT.AccessTTL,
 		cfg.JWT.RefreshTTL,
 	)
-	services := service.NewServices(repositories, tokenManager, caches.Blacklist)
+	services := service.NewServices(repositories, tokenManager, caches.Blacklist, caches.Refresh)
 
 	return &Container{
 		Config:       cfg,

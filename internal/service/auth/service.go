@@ -28,27 +28,43 @@ type Blacklist interface {
 	Revoke(ctx context.Context, token string, expiresAt time.Time) error
 }
 
+type RefreshTokens interface {
+	Add(ctx context.Context, token string, expiresAt time.Time) error
+	Remove(ctx context.Context, token string) error
+	Rotate(ctx context.Context, oldToken, newToken string, newExpiresAt time.Time) (bool, error)
+}
+
 type Service struct {
 	users        UserRepository
 	tokenManager TokenManager
 	blacklist    Blacklist
+	refresh      RefreshTokens
 }
 
-func NewService(users UserRepository, tokenManager TokenManager, blacklist Blacklist) *Service {
+func NewService(users UserRepository, tokenManager TokenManager, blacklist Blacklist, refresh RefreshTokens) *Service {
 	return &Service{
 		users:        users,
 		tokenManager: tokenManager,
 		blacklist:    blacklist,
+		refresh:      refresh,
 	}
 }
 
-func (s *Service) Logout(ctx context.Context, token string) error {
-	claims, err := s.tokenManager.ParseToken(token, jwt.TokenTypeAccess)
+func (s *Service) Logout(ctx context.Context, accessToken, refreshToken string) error {
+	accessClaims, err := s.tokenManager.ParseToken(accessToken, jwt.TokenTypeAccess)
 	if err != nil {
 		return err
 	}
 
-	return s.blacklist.Revoke(ctx, token, claims.ExpiresAt.Time)
+	if _, err := s.tokenManager.ParseToken(refreshToken, jwt.TokenTypeRefresh); err != nil {
+		return err
+	}
+
+	if err := s.blacklist.Revoke(ctx, accessToken, accessClaims.ExpiresAt.Time); err != nil {
+		return err
+	}
+
+	return s.refresh.Remove(ctx, refreshToken)
 }
 
 func (s *Service) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
@@ -65,6 +81,13 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*TokenPair,
 	pair, err := s.tokenManager.GeneratePair(u.ID, string(u.Role))
 	if err != nil {
 		return nil, err
+	}
+	rotated, err := s.refresh.Rotate(ctx, refreshToken, pair.RefreshToken, pair.RefreshTokenExpiresAt)
+	if err != nil {
+		return nil, err
+	}
+	if !rotated {
+		return nil, jwt.ErrInvalidToken
 	}
 
 	return &TokenPair{
@@ -129,6 +152,9 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*TokenPair, erro
 
 	pair, err := s.tokenManager.GeneratePair(u.ID, string(u.Role))
 	if err != nil {
+		return nil, err
+	}
+	if err := s.refresh.Add(ctx, pair.RefreshToken, pair.RefreshTokenExpiresAt); err != nil {
 		return nil, err
 	}
 

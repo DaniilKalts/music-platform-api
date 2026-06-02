@@ -89,16 +89,19 @@ func TestHandlerLogout(t *testing.T) {
 		name           string
 		logoutErr      error
 		authHeader     string
+		body           string
 		expectedStatus int
 		expectedBody   string
 	}{
 		{
 			name:           "success",
 			authHeader:     "Bearer access-token",
+			body:           `{"refresh_token":"refresh-token"}`,
 			expectedStatus: http.StatusNoContent,
 		},
 		{
 			name:           "missing token",
+			body:           `{"refresh_token":"refresh-token"}`,
 			expectedStatus: http.StatusUnauthorized,
 			expectedBody:   `{"error":"empty auth header"}`,
 		},
@@ -106,6 +109,7 @@ func TestHandlerLogout(t *testing.T) {
 			name:           "invalid token",
 			logoutErr:      jwtpkg.ErrInvalidToken,
 			authHeader:     "Bearer bad-token",
+			body:           `{"refresh_token":"refresh-token"}`,
 			expectedStatus: http.StatusUnauthorized,
 			expectedBody:   `{"error":"invalid or expired token"}`,
 		},
@@ -113,6 +117,7 @@ func TestHandlerLogout(t *testing.T) {
 			name:           "internal error",
 			logoutErr:      errors.New("redis is down"),
 			authHeader:     "Bearer access-token",
+			body:           `{"refresh_token":"refresh-token"}`,
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   `{"error":"internal server error"}`,
 		},
@@ -125,7 +130,7 @@ func TestHandlerLogout(t *testing.T) {
 
 			h := NewHandler(&serviceMock{logoutErr: tt.logoutErr})
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+			r := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", bytes.NewBufferString(tt.body))
 			if tt.authHeader != "" {
 				r.Header.Set("Authorization", tt.authHeader)
 			}
@@ -286,7 +291,7 @@ func (m *serviceMock) Login(_ context.Context, _ serviceauth.LoginInput) (*servi
 	return m.loginToken, nil
 }
 
-func (m *serviceMock) Logout(_ context.Context, _ string) error {
+func (m *serviceMock) Logout(_ context.Context, _, _ string) error {
 	return m.logoutErr
 }
 

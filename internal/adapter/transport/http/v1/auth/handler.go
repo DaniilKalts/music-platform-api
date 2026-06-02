@@ -14,7 +14,7 @@ import (
 type Service interface {
 	Register(ctx context.Context, input serviceauth.RegisterInput) (*user.User, error)
 	Login(ctx context.Context, input serviceauth.LoginInput) (*serviceauth.TokenPair, error)
-	Logout(ctx context.Context, token string) error
+	Logout(ctx context.Context, accessToken, refreshToken string) error
 	Refresh(ctx context.Context, refreshToken string) (*serviceauth.TokenPair, error)
 }
 
@@ -72,13 +72,18 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	var body LogoutRequest
+	if !httpx.DecodeJSON(w, r, &body) {
+		return
+	}
+
 	token, err := httpx.ExtractToken(r)
 	if err != nil {
 		httpx.WriteError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	if err := h.service.Logout(r.Context(), token); err != nil {
+	if err := h.service.Logout(r.Context(), token, body.RefreshToken); err != nil {
 		if errors.Is(err, jwtpkg.ErrInvalidToken) {
 			httpx.WriteError(w, http.StatusUnauthorized, err.Error())
 			return

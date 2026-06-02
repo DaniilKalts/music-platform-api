@@ -21,7 +21,7 @@ func TestServiceRegister(t *testing.T) {
 		t.Parallel()
 
 		users := &userRepositoryMock{}
-		service := NewService(users, &tokenManagerMock{}, &blacklistMock{})
+		service := NewService(users, &tokenManagerMock{}, &blacklistMock{}, &refreshTokensMock{})
 
 		created, err := service.Register(context.Background(), RegisterInput{
 
@@ -42,7 +42,7 @@ func TestServiceRegister(t *testing.T) {
 	t.Run("invalid password", func(t *testing.T) {
 		t.Parallel()
 
-		service := NewService(&userRepositoryMock{}, &tokenManagerMock{}, &blacklistMock{})
+		service := NewService(&userRepositoryMock{}, &tokenManagerMock{}, &blacklistMock{}, &refreshTokensMock{})
 
 		_, err := service.Register(context.Background(), RegisterInput{
 
@@ -58,7 +58,7 @@ func TestServiceRegister(t *testing.T) {
 		t.Parallel()
 
 		repositoryErr := errors.New("repository error")
-		service := NewService(&userRepositoryMock{createErr: repositoryErr}, &tokenManagerMock{}, &blacklistMock{})
+		service := NewService(&userRepositoryMock{createErr: repositoryErr}, &tokenManagerMock{}, &blacklistMock{}, &refreshTokensMock{})
 
 		_, err := service.Register(context.Background(), RegisterInput{
 
@@ -82,6 +82,7 @@ func TestServiceLogin(t *testing.T) {
 
 		userID := uuid.New()
 		refreshExpiresAt := time.Now().Add(time.Hour)
+		refresh := &refreshTokensMock{}
 		service := NewService(
 			&userRepositoryMock{credentialsUser: &user.User{ID: userID, Email: "daniil.kalts@rbk.kz", Role: user.RoleUser}, credentialsPassword: password},
 			&tokenManagerMock{pair: &jwt.Pair{
@@ -91,6 +92,7 @@ func TestServiceLogin(t *testing.T) {
 				RefreshTokenExpiresAt: refreshExpiresAt,
 			}},
 			&blacklistMock{},
+			refresh,
 		)
 
 		pair, err := service.Login(context.Background(), LoginInput{Email: "DANIIL.KALTS@rbk.kz", Password: "12345678"})
@@ -99,12 +101,14 @@ func TestServiceLogin(t *testing.T) {
 		require.Equal(t, "access-token", pair.AccessToken)
 		require.Equal(t, "refresh-token", pair.RefreshToken)
 		require.Equal(t, refreshExpiresAt, pair.RefreshTokenExpiresAt)
+		require.Equal(t, "refresh-token", refresh.addedToken)
+		require.Equal(t, refreshExpiresAt, refresh.addedExpiresAt)
 	})
 
 	t.Run("user not found", func(t *testing.T) {
 		t.Parallel()
 
-		service := NewService(&userRepositoryMock{credentialsErr: user.ErrNotFound}, &tokenManagerMock{}, &blacklistMock{})
+		service := NewService(&userRepositoryMock{credentialsErr: user.ErrNotFound}, &tokenManagerMock{}, &blacklistMock{}, &refreshTokensMock{})
 
 		_, err := service.Login(context.Background(), LoginInput{Email: "daniil.kalts@rbk.kz", Password: "12345678"})
 
@@ -121,6 +125,7 @@ func TestServiceLogin(t *testing.T) {
 			&userRepositoryMock{credentialsUser: &user.User{ID: uuid.New(), Email: "daniil.kalts@rbk.kz", Role: user.RoleUser}, credentialsPassword: password},
 			&tokenManagerMock{},
 			&blacklistMock{},
+			&refreshTokensMock{},
 		)
 
 		_, err = service.Login(context.Background(), LoginInput{Email: "daniil.kalts@rbk.kz", Password: "wrong-password"})
@@ -134,17 +139,20 @@ func TestServiceLogout(t *testing.T) {
 
 	expiresAt := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
 	blacklist := &blacklistMock{}
+	refresh := &refreshTokensMock{}
 	service := NewService(
 		&userRepositoryMock{},
 		&tokenManagerMock{claims: &jwt.Claims{RegisteredClaims: gojwt.RegisteredClaims{ExpiresAt: gojwt.NewNumericDate(expiresAt)}}},
 		blacklist,
+		refresh,
 	)
 
-	err := service.Logout(context.Background(), "access-token")
+	err := service.Logout(context.Background(), "access-token", "refresh-token")
 
 	require.NoError(t, err)
 	require.Equal(t, "access-token", blacklist.revokedToken)
 	require.Equal(t, expiresAt, blacklist.revokedExpiresAt)
+	require.Equal(t, "refresh-token", refresh.removedToken)
 }
 
 func TestServiceRefresh(t *testing.T) {
@@ -152,6 +160,7 @@ func TestServiceRefresh(t *testing.T) {
 
 	userID := uuid.New()
 	refreshExpiresAt := time.Now().Add(time.Hour)
+	refresh := &refreshTokensMock{rotated: true}
 	service := NewService(
 		&userRepositoryMock{userByID: &user.User{ID: userID, Role: user.RoleUser}},
 		&tokenManagerMock{
@@ -164,6 +173,7 @@ func TestServiceRefresh(t *testing.T) {
 			},
 		},
 		&blacklistMock{},
+		refresh,
 	)
 
 	pair, err := service.Refresh(context.Background(), "refresh-token")
@@ -172,6 +182,33 @@ func TestServiceRefresh(t *testing.T) {
 	require.Equal(t, "new-access-token", pair.AccessToken)
 	require.Equal(t, "new-refresh-token", pair.RefreshToken)
 	require.Equal(t, refreshExpiresAt, pair.RefreshTokenExpiresAt)
+	require.Equal(t, "refresh-token", refresh.rotatedOldToken)
+	require.Equal(t, "new-refresh-token", refresh.rotatedNewToken)
+	require.Equal(t, refreshExpiresAt, refresh.rotatedNewExpiresAt)
+}
+
+func TestServiceRefreshRejectsMissingAllowlistToken(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	service := NewService(
+		&userRepositoryMock{userByID: &user.User{ID: userID, Role: user.RoleUser}},
+		&tokenManagerMock{
+			claims: &jwt.Claims{UserID: userID},
+			pair: &jwt.Pair{
+				AccessToken:           "new-access-token",
+				AccessTokenExpiresAt:  time.Now().Add(time.Minute),
+				RefreshToken:          "new-refresh-token",
+				RefreshTokenExpiresAt: time.Now().Add(time.Hour),
+			},
+		},
+		&blacklistMock{},
+		&refreshTokensMock{rotated: false},
+	)
+
+	_, err := service.Refresh(context.Background(), "refresh-token")
+
+	require.ErrorIs(t, err, jwt.ErrInvalidToken)
 }
 
 type userRepositoryMock struct {
@@ -243,4 +280,43 @@ func (m *blacklistMock) Revoke(_ context.Context, token string, expiresAt time.T
 	m.revokedToken = token
 	m.revokedExpiresAt = expiresAt
 	return nil
+}
+
+type refreshTokensMock struct {
+	rotated bool
+	err     error
+
+	addedToken          string
+	addedExpiresAt      time.Time
+	removedToken        string
+	rotatedOldToken     string
+	rotatedNewToken     string
+	rotatedNewExpiresAt time.Time
+}
+
+func (m *refreshTokensMock) Add(_ context.Context, token string, expiresAt time.Time) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.addedToken = token
+	m.addedExpiresAt = expiresAt
+	return nil
+}
+
+func (m *refreshTokensMock) Remove(_ context.Context, token string) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.removedToken = token
+	return nil
+}
+
+func (m *refreshTokensMock) Rotate(_ context.Context, oldToken, newToken string, newExpiresAt time.Time) (bool, error) {
+	if m.err != nil {
+		return false, m.err
+	}
+	m.rotatedOldToken = oldToken
+	m.rotatedNewToken = newToken
+	m.rotatedNewExpiresAt = newExpiresAt
+	return m.rotated, nil
 }

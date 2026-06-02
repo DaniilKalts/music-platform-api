@@ -99,12 +99,12 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 ## 2. Auth (`service/auth`, `v1/auth`)
 - [x] `domain/user/password.go` — bcrypt + salt (`NewPassword`/`Matches`)
 - [x] `pkg/jwt` manager: подпись/парсинг HMAC, пин алгоритма, проверка `exp`, claims (`user_id`, `role`)
-- [x] Refresh-токены — stateless JWT без таблицы `refresh_tokens`; хранение добавлять только если понадобится server-side revoke/rotation
+- [x] Refresh-токены — JWT + Redis allowlist без таблицы `refresh_tokens`
 - [x] `cache/blacklist` — отзыв access-токена при logout (Redis, TTL = остаток жизни токена)
 - [x] `POST /auth/register` (роль USER, подписка FREE по умолчанию)
 - [x] `POST /auth/login` (access + refresh)
 - [x] `POST /auth/refresh` (ротация refresh)
-- [x] `POST /auth/logout` (blacklist access; refresh stateless)
+- [x] `POST /auth/logout` (blacklist access; remove refresh из allowlist)
 
 ## 3. Middleware
 - [x] `adapter/.../middleware/request_id` (correlation id в context)

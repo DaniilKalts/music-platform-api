@@ -31,6 +31,10 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
 type TokenResponse struct {
 	AccessToken           string `json:"access_token"`
 	AccessTokenExpiresAt  string `json:"access_token_expires_at"`
