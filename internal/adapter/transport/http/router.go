@@ -12,12 +12,19 @@ import (
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1"
 )
 
-func NewRouter(logger *zap.Logger, deps v1.Dependencies, handlerTimeout time.Duration) http.Handler {
+func NewRouter(
+	logger *zap.Logger,
+	deps v1.Dependencies,
+	tokenManager middleware.TokenManager,
+	blacklist middleware.Blacklist,
+	handlerTimeout time.Duration,
+) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger(logger))
 	r.Use(middleware.Recover)
+	r.Use(middleware.Auth(tokenManager, blacklist))
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
