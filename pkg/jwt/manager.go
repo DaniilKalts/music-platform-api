@@ -1,41 +1,16 @@
 package jwt
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	gojwt "github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
-
-const issuer = "music-platform-api"
-
-var ErrInvalidToken = errors.New("invalid or expired token")
-
-type TokenType string
 
 const (
-	TokenTypeAccess  TokenType = "access"
-	TokenTypeRefresh TokenType = "refresh"
+	issuer = "music-platform-api"
 )
-
-type Claims struct {
-	UserID uuid.UUID `json:"user_id"`
-	Role   string    `json:"role,omitempty"`
-	Type   TokenType `json:"type"`
-	gojwt.RegisteredClaims
-}
-
-type Pair struct {
-	AccessToken           string
-	AccessTokenExpiresAt  time.Time
-	RefreshToken          string
-	RefreshTokenExpiresAt time.Time
-}
 
 type Manager struct {
 	accessSecret  []byte
@@ -46,8 +21,8 @@ type Manager struct {
 
 func NewManager(accessSecret, refreshSecret []byte, accessTTL, refreshTTL time.Duration) *Manager {
 	return &Manager{
-		accessSecret:  accessSecret,
-		refreshSecret: refreshSecret,
+		accessSecret:  append([]byte(nil), accessSecret...),
+		refreshSecret: append([]byte(nil), refreshSecret...),
 		accessTTL:     accessTTL,
 		refreshTTL:    refreshTTL,
 	}
@@ -72,25 +47,40 @@ func (m *Manager) GeneratePair(userID uuid.UUID, role string) (*Pair, error) {
 	}, nil
 }
 
-func HashToken(token string) string {
-	sum := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(sum[:])
+func (m *Manager) ParseToken(tokenStr string, tokenType TokenType) (*Claims, error) {
+	secret, ok := m.secretFor(tokenType)
+	if !ok {
+		return nil, ErrInvalidToken
+	}
+
+	token, err := gojwt.ParseWithClaims(
+		tokenStr,
+		&Claims{},
+		m.keyFunc(secret),
+		gojwt.WithExpirationRequired(),
+		gojwt.WithIssuer(issuer),
+		gojwt.WithValidMethods([]string{gojwt.SigningMethodHS256.Alg()}),
+	)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, ErrInvalidToken
+	}
+
+	if claims.Type != tokenType {
+		return nil, ErrInvalidToken
+	}
+
+	return claims, nil
 }
 
 func (m *Manager) generate(userID uuid.UUID, role string, tokenType TokenType, secret []byte, ttl time.Duration) (string, time.Time, error) {
 	now := time.Now().UTC()
 	expiresAt := now.Add(ttl)
-	claims := Claims{
-		UserID: userID,
-		Role:   role,
-		Type:   tokenType,
-		RegisteredClaims: gojwt.RegisteredClaims{
-			ExpiresAt: gojwt.NewNumericDate(expiresAt),
-			IssuedAt:  gojwt.NewNumericDate(now),
-			Issuer:    issuer,
-			Subject:   userID.String(),
-		},
-	}
+	claims := newClaims(userID, role, tokenType, now, expiresAt)
 
 	token := gojwt.NewWithClaims(gojwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(secret)
@@ -99,4 +89,25 @@ func (m *Manager) generate(userID uuid.UUID, role string, tokenType TokenType, s
 	}
 
 	return signed, expiresAt, nil
+}
+
+func (m *Manager) secretFor(tokenType TokenType) ([]byte, bool) {
+	switch tokenType {
+	case TokenTypeAccess:
+		return m.accessSecret, true
+	case TokenTypeRefresh:
+		return m.refreshSecret, true
+	default:
+		return nil, false
+	}
+}
+
+func (m *Manager) keyFunc(secret []byte) gojwt.Keyfunc {
+	return func(token *gojwt.Token) (interface{}, error) {
+		if token.Method != gojwt.SigningMethodHS256 {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return secret, nil
+	}
 }
