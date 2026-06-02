@@ -5,6 +5,7 @@ import "fmt"
 type Config struct {
 	Server   Server
 	Postgres Postgres `envPrefix:"DB_"`
+	Redis    Redis    `envPrefix:"REDIS_"`
 	JWT      JWT      `envPrefix:"JWT_"`
 	Logger   Logger   `envPrefix:"LOG_"`
 }
@@ -18,9 +19,14 @@ func (c Config) Validate() error {
 		return fmt.Errorf("postgres config: %w", err)
 	}
 
+	if err := c.Redis.Validate(); err != nil {
+		return fmt.Errorf("redis config: %w", err)
+	}
+
 	if err := c.JWT.Validate(); err != nil {
 		return fmt.Errorf("jwt config: %w", err)
 	}
+
 
 	if err := c.Logger.Validate(); err != nil {
 		return fmt.Errorf("logger config: %w", err)
