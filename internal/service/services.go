@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/DaniilKalts/music-platform-api/internal/domain/user"
 	"github.com/DaniilKalts/music-platform-api/internal/repository"
 	"github.com/DaniilKalts/music-platform-api/internal/service/auth"
+	serviceuser "github.com/DaniilKalts/music-platform-api/internal/service/user"
 )
 
 type AuthService interface {
@@ -15,8 +18,14 @@ type AuthService interface {
 	Refresh(ctx context.Context, refreshToken string) (*auth.TokenPair, error)
 }
 
+type UserService interface {
+	GetMe(ctx context.Context, id uuid.UUID) (*user.User, error)
+	UpdateMe(ctx context.Context, id uuid.UUID, input serviceuser.UpdateInput) (*user.User, error)
+}
+
 type Services struct {
 	Auth AuthService
+	User UserService
 }
 
 func NewServices(
@@ -27,5 +36,6 @@ func NewServices(
 ) *Services {
 	return &Services{
 		Auth: auth.NewService(repositories.User, tokenManager, blacklist, refresh),
+		User: serviceuser.NewService(repositories.User),
 	}
 }

@@ -115,8 +115,8 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 
 
 ## 4. Users (`service/user`, `v1/user`)
-- [ ] `GET /users/me` (id, email, username, role, subscription_type, created_at)
-- [ ] `PATCH /users/me`
+- [x] `GET /users/me` (id, email, username, role, subscription_type, created_at)
+- [x] `PATCH /users/me`
 
 ## 5. Tracks (`service/track`, `v1/track`)
 - [ ] `GET /tracks` (пагинация `page`/`limit`)

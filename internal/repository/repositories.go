@@ -14,6 +14,7 @@ type UserRepository interface {
 	Create(ctx context.Context, u user.User, password user.Password) (*user.User, error)
 	GetCredentialsByEmail(ctx context.Context, email string) (*user.User, user.Password, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*user.User, error)
+	UpdateProfile(ctx context.Context, id uuid.UUID, email, username *string) (*user.User, error)
 }
 
 type Repositories struct {

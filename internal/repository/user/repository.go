@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres"
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres/sqlc"
@@ -97,4 +98,42 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*user.User, err
 		CreatedAt:        row.CreatedAt,
 		UpdatedAt:        row.UpdatedAt,
 	}), nil
+}
+
+func (r *Repository) UpdateProfile(ctx context.Context, id uuid.UUID, email, username *string) (*user.User, error) {
+	row, err := r.queries.UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
+		ID:       id,
+		Email:    nullableText(email),
+		Username: nullableText(username),
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, user.ErrNotFound
+		case postgres.IsUniqueViolation(err, emailUniqueConstraint):
+			return nil, user.ErrEmailAlreadyExists
+		case postgres.IsUniqueViolation(err, usernameUniqueConstraint):
+			return nil, user.ErrUsernameAlreadyExists
+		default:
+			return nil, fmt.Errorf("update user profile: %w", err)
+		}
+	}
+
+	return toDomain(userRow{
+		ID:               row.ID,
+		Email:            row.Email,
+		Username:         row.Username,
+		Role:             row.Role,
+		SubscriptionType: row.SubscriptionType,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
+	}), nil
+}
+
+func nullableText(value *string) pgtype.Text {
+	if value == nil {
+		return pgtype.Text{}
+	}
+
+	return pgtype.Text{String: *value, Valid: true}
 }

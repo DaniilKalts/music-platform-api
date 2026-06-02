@@ -30,6 +30,7 @@ func NewApp(cfg *config.Config, logger *zap.Logger) (*App, error) {
 		c.Logger,
 		v1.Dependencies{
 			AuthService: c.Services.Auth,
+			UserService: c.Services.User,
 		},
 		c.TokenManager,
 		c.Caches.Blacklist,
