@@ -8,11 +8,14 @@ import (
 	"github.com/DaniilKalts/music-platform-api/internal/domain/user"
 	serviceauth "github.com/DaniilKalts/music-platform-api/internal/service/auth"
 	"github.com/DaniilKalts/music-platform-api/pkg/httpx"
+	jwtpkg "github.com/DaniilKalts/music-platform-api/pkg/jwt"
 )
 
 type Service interface {
 	Register(ctx context.Context, input serviceauth.RegisterInput) (*user.User, error)
 	Login(ctx context.Context, input serviceauth.LoginInput) (*serviceauth.TokenPair, error)
+	Logout(ctx context.Context, token string) error
+	Refresh(ctx context.Context, refreshToken string) (*serviceauth.TokenPair, error)
 }
 
 type Handler struct {
@@ -59,6 +62,46 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, serviceauth.ErrInvalidCredentials):
 			httpx.WriteError(w, http.StatusUnauthorized, err.Error())
+		default:
+			httpx.WriteInternalError(w, r, err)
+		}
+		return
+	}
+
+	httpx.JSON(w, http.StatusOK, ToTokenResponse(*token))
+}
+
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	token, err := httpx.ExtractToken(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	if err := h.service.Logout(r.Context(), token); err != nil {
+		if errors.Is(err, jwtpkg.ErrInvalidToken) {
+			httpx.WriteError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+
+		httpx.WriteInternalError(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var body RefreshRequest
+	if !httpx.DecodeJSON(w, r, &body) {
+		return
+	}
+
+	token, err := h.service.Refresh(r.Context(), body.RefreshToken)
+	if err != nil {
+		switch {
+		case errors.Is(err, jwtpkg.ErrInvalidToken), errors.Is(err, user.ErrNotFound):
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid refresh token")
 		default:
 			httpx.WriteInternalError(w, r, err)
 		}

@@ -16,15 +16,63 @@ var ErrInvalidCredentials = errors.New("invalid email or password")
 type UserRepository interface {
 	Create(ctx context.Context, u user.User, password user.Password) (*user.User, error)
 	GetCredentialsByEmail(ctx context.Context, email string) (*user.User, user.Password, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*user.User, error)
 }
 
 type TokenManager interface {
 	GeneratePair(userID uuid.UUID, role string) (*jwt.Pair, error)
+	ParseToken(tokenStr string, tokenType jwt.TokenType) (*jwt.Claims, error)
+}
+
+type Blacklist interface {
+	Revoke(ctx context.Context, token string, expiresAt time.Time) error
 }
 
 type Service struct {
 	users        UserRepository
 	tokenManager TokenManager
+	blacklist    Blacklist
+}
+
+func NewService(users UserRepository, tokenManager TokenManager, blacklist Blacklist) *Service {
+	return &Service{
+		users:        users,
+		tokenManager: tokenManager,
+		blacklist:    blacklist,
+	}
+}
+
+func (s *Service) Logout(ctx context.Context, token string) error {
+	claims, err := s.tokenManager.ParseToken(token, jwt.TokenTypeAccess)
+	if err != nil {
+		return err
+	}
+
+	return s.blacklist.Revoke(ctx, token, claims.ExpiresAt.Time)
+}
+
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
+	claims, err := s.tokenManager.ParseToken(refreshToken, jwt.TokenTypeRefresh)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := s.users.GetByID(ctx, claims.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := s.tokenManager.GeneratePair(u.ID, string(u.Role))
+	if err != nil {
+		return nil, err
+	}
+
+	return &TokenPair{
+		AccessToken:           pair.AccessToken,
+		AccessTokenExpiresAt:  pair.AccessTokenExpiresAt,
+		RefreshToken:          pair.RefreshToken,
+		RefreshTokenExpiresAt: pair.RefreshTokenExpiresAt,
+	}, nil
 }
 
 type RegisterInput struct {
@@ -45,11 +93,8 @@ type TokenPair struct {
 	RefreshTokenExpiresAt time.Time
 }
 
-func NewService(users UserRepository, tokenManager TokenManager) *Service {
-	return &Service{users: users, tokenManager: tokenManager}
-}
-
 func (s *Service) Register(ctx context.Context, input RegisterInput) (*user.User, error) {
+
 	password, err := user.NewPassword(input.Password)
 	if err != nil {
 		return nil, err

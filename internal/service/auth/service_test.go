@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	gojwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
@@ -20,9 +21,10 @@ func TestServiceRegister(t *testing.T) {
 		t.Parallel()
 
 		users := &userRepositoryMock{}
-		service := NewService(users, &tokenManagerMock{})
+		service := NewService(users, &tokenManagerMock{}, &blacklistMock{})
 
 		created, err := service.Register(context.Background(), RegisterInput{
+
 			Email:    "Daniil.Kalts@Rbk.kz",
 			Username: "daniilkalts",
 			Password: "12345678",
@@ -40,9 +42,10 @@ func TestServiceRegister(t *testing.T) {
 	t.Run("invalid password", func(t *testing.T) {
 		t.Parallel()
 
-		service := NewService(&userRepositoryMock{}, &tokenManagerMock{})
+		service := NewService(&userRepositoryMock{}, &tokenManagerMock{}, &blacklistMock{})
 
 		_, err := service.Register(context.Background(), RegisterInput{
+
 			Email:    "daniil.kalts@rbk.kz",
 			Username: "daniilkalts",
 			Password: "short",
@@ -55,9 +58,10 @@ func TestServiceRegister(t *testing.T) {
 		t.Parallel()
 
 		repositoryErr := errors.New("repository error")
-		service := NewService(&userRepositoryMock{createErr: repositoryErr}, &tokenManagerMock{})
+		service := NewService(&userRepositoryMock{createErr: repositoryErr}, &tokenManagerMock{}, &blacklistMock{})
 
 		_, err := service.Register(context.Background(), RegisterInput{
+
 			Email:    "daniil.kalts@rbk.kz",
 			Username: "daniilkalts",
 			Password: "12345678",
@@ -86,6 +90,7 @@ func TestServiceLogin(t *testing.T) {
 				RefreshToken:          "refresh-token",
 				RefreshTokenExpiresAt: refreshExpiresAt,
 			}},
+			&blacklistMock{},
 		)
 
 		pair, err := service.Login(context.Background(), LoginInput{Email: "DANIIL.KALTS@rbk.kz", Password: "12345678"})
@@ -99,7 +104,7 @@ func TestServiceLogin(t *testing.T) {
 	t.Run("user not found", func(t *testing.T) {
 		t.Parallel()
 
-		service := NewService(&userRepositoryMock{credentialsErr: user.ErrNotFound}, &tokenManagerMock{})
+		service := NewService(&userRepositoryMock{credentialsErr: user.ErrNotFound}, &tokenManagerMock{}, &blacklistMock{})
 
 		_, err := service.Login(context.Background(), LoginInput{Email: "daniil.kalts@rbk.kz", Password: "12345678"})
 
@@ -115,12 +120,58 @@ func TestServiceLogin(t *testing.T) {
 		service := NewService(
 			&userRepositoryMock{credentialsUser: &user.User{ID: uuid.New(), Email: "daniil.kalts@rbk.kz", Role: user.RoleUser}, credentialsPassword: password},
 			&tokenManagerMock{},
+			&blacklistMock{},
 		)
 
 		_, err = service.Login(context.Background(), LoginInput{Email: "daniil.kalts@rbk.kz", Password: "wrong-password"})
 
 		require.ErrorIs(t, err, ErrInvalidCredentials)
 	})
+}
+
+func TestServiceLogout(t *testing.T) {
+	t.Parallel()
+
+	expiresAt := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
+	blacklist := &blacklistMock{}
+	service := NewService(
+		&userRepositoryMock{},
+		&tokenManagerMock{claims: &jwt.Claims{RegisteredClaims: gojwt.RegisteredClaims{ExpiresAt: gojwt.NewNumericDate(expiresAt)}}},
+		blacklist,
+	)
+
+	err := service.Logout(context.Background(), "access-token")
+
+	require.NoError(t, err)
+	require.Equal(t, "access-token", blacklist.revokedToken)
+	require.Equal(t, expiresAt, blacklist.revokedExpiresAt)
+}
+
+func TestServiceRefresh(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	refreshExpiresAt := time.Now().Add(time.Hour)
+	service := NewService(
+		&userRepositoryMock{userByID: &user.User{ID: userID, Role: user.RoleUser}},
+		&tokenManagerMock{
+			claims: &jwt.Claims{UserID: userID},
+			pair: &jwt.Pair{
+				AccessToken:           "new-access-token",
+				AccessTokenExpiresAt:  time.Now().Add(time.Minute),
+				RefreshToken:          "new-refresh-token",
+				RefreshTokenExpiresAt: refreshExpiresAt,
+			},
+		},
+		&blacklistMock{},
+	)
+
+	pair, err := service.Refresh(context.Background(), "refresh-token")
+
+	require.NoError(t, err)
+	require.Equal(t, "new-access-token", pair.AccessToken)
+	require.Equal(t, "new-refresh-token", pair.RefreshToken)
+	require.Equal(t, refreshExpiresAt, pair.RefreshTokenExpiresAt)
 }
 
 type userRepositoryMock struct {
@@ -131,6 +182,8 @@ type userRepositoryMock struct {
 	credentialsUser     *user.User
 	credentialsPassword user.Password
 	credentialsErr      error
+	userByID            *user.User
+	userByIDErr         error
 }
 
 func (m *userRepositoryMock) Create(_ context.Context, u user.User, password user.Password) (*user.User, error) {
@@ -153,9 +206,17 @@ func (m *userRepositoryMock) GetCredentialsByEmail(_ context.Context, _ string) 
 	return m.credentialsUser, m.credentialsPassword, nil
 }
 
+func (m *userRepositoryMock) GetByID(_ context.Context, _ uuid.UUID) (*user.User, error) {
+	if m.userByIDErr != nil {
+		return nil, m.userByIDErr
+	}
+	return m.userByID, nil
+}
+
 type tokenManagerMock struct {
-	pair *jwt.Pair
-	err  error
+	pair   *jwt.Pair
+	claims *jwt.Claims
+	err    error
 }
 
 func (m *tokenManagerMock) GeneratePair(_ uuid.UUID, _ string) (*jwt.Pair, error) {
@@ -164,4 +225,22 @@ func (m *tokenManagerMock) GeneratePair(_ uuid.UUID, _ string) (*jwt.Pair, error
 	}
 
 	return m.pair, nil
+}
+
+func (m *tokenManagerMock) ParseToken(_ string, _ jwt.TokenType) (*jwt.Claims, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.claims, nil
+}
+
+type blacklistMock struct {
+	revokedToken     string
+	revokedExpiresAt time.Time
+}
+
+func (m *blacklistMock) Revoke(_ context.Context, token string, expiresAt time.Time) error {
+	m.revokedToken = token
+	m.revokedExpiresAt = expiresAt
+	return nil
 }

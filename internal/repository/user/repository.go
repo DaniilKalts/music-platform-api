@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres"
@@ -75,4 +76,25 @@ func (r *Repository) GetCredentialsByEmail(ctx context.Context, email string) (*
 	password := user.Password{Hash: row.PasswordHash, Salt: row.Salt}
 
 	return u, password, nil
+}
+
+func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*user.User, error) {
+	row, err := r.queries.GetUserByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, user.ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get user by id: %w", err)
+	}
+
+	return toDomain(userRow{
+		ID:               row.ID,
+		Email:            row.Email,
+		Username:         row.Username,
+		Role:             row.Role,
+		SubscriptionType: row.SubscriptionType,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
+	}), nil
 }

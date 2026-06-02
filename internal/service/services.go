@@ -11,14 +11,20 @@ import (
 type AuthService interface {
 	Register(ctx context.Context, input auth.RegisterInput) (*user.User, error)
 	Login(ctx context.Context, input auth.LoginInput) (*auth.TokenPair, error)
+	Logout(ctx context.Context, token string) error
+	Refresh(ctx context.Context, refreshToken string) (*auth.TokenPair, error)
 }
 
 type Services struct {
 	Auth AuthService
 }
 
-func NewServices(repositories *repository.Repositories, tokenManager auth.TokenManager) *Services {
+func NewServices(
+	repositories *repository.Repositories,
+	tokenManager auth.TokenManager,
+	blacklist auth.Blacklist,
+) *Services {
 	return &Services{
-		Auth: auth.NewService(repositories.User, tokenManager),
+		Auth: auth.NewService(repositories.User, tokenManager, blacklist),
 	}
 }

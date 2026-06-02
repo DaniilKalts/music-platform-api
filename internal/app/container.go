@@ -14,7 +14,7 @@ import (
 	"github.com/DaniilKalts/music-platform-api/internal/config"
 	"github.com/DaniilKalts/music-platform-api/internal/repository"
 	"github.com/DaniilKalts/music-platform-api/internal/service"
-	"github.com/DaniilKalts/music-platform-api/pkg/jwt"
+	jwtpkg "github.com/DaniilKalts/music-platform-api/pkg/jwt"
 )
 
 type Container struct {
@@ -26,7 +26,7 @@ type Container struct {
 
 	Repositories *repository.Repositories
 	Caches       *cache.Caches
-	TokenManager *jwt.Manager
+	TokenManager *jwtpkg.Manager
 	Services     *service.Services
 }
 
@@ -62,7 +62,7 @@ func NewContainer(cfg *config.Config, logger *zap.Logger) (_ *Container, err err
 		cfg.JWT.AccessTTL,
 		cfg.JWT.RefreshTTL,
 	)
-	services := service.NewServices(repositories, tokenManager)
+	services := service.NewServices(repositories, tokenManager, caches.Blacklist)
 
 	return &Container{
 		Config:       cfg,

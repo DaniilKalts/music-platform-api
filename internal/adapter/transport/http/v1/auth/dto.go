@@ -8,9 +8,9 @@ import (
 )
 
 type RegisterRequest struct {
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email"`
+	Username string `json:"username" validate:"required,min=3,max=30"`
+	Password string `json:"password" validate:"required,min=8,max=64"`
 }
 
 type RegisterResponse struct {
@@ -23,8 +23,12 @@ type RegisterResponse struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 type TokenResponse struct {

@@ -80,7 +80,7 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 - [x] `internal/config` — структуры + `Load()` (godotenv+env) + `Validate()`, разбит по файлам
 - [x] `pkg/logger` — zap factory (конфигурируется из `config.logger`)
 - [x] `adapter/database/postgres/client.go` — пул pgx + ping
-- [ ] `adapter/cache/redis/client.go` — клиент go-redis + ping
+- [x] `adapter/cache/redis/client.go` — клиент go-redis + ping
 - [x] `pkg/httpx` — JSON/error-хелперы, request_id + claims в context, extract Bearer
 - [x] `internal/app/container.go` (DI: конфиг→клиенты→репо→кэш→сервисы→хендлеры) и `app.go` (запуск + graceful shutdown по `SERVER_SHUTDOWN_TIMEOUT`)
 - [x] `cmd/api/main.go`, `GET /health`
@@ -99,19 +99,20 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 ## 2. Auth (`service/auth`, `v1/auth`)
 - [x] `domain/user/password.go` — bcrypt + salt (`NewPassword`/`Matches`)
 - [x] `pkg/jwt` manager: подпись/парсинг HMAC, пин алгоритма, проверка `exp`, claims (`user_id`, `role`)
-- [ ] Refresh-токены — stateless JWT без таблицы `refresh_tokens`; хранение добавлять только если понадобится server-side revoke/rotation
-- [ ] `cache/blacklist` — отзыв access-токена при logout (Redis, TTL = остаток жизни токена)
+- [x] Refresh-токены — stateless JWT без таблицы `refresh_tokens`; хранение добавлять только если понадобится server-side revoke/rotation
+- [x] `cache/blacklist` — отзыв access-токена при logout (Redis, TTL = остаток жизни токена)
 - [x] `POST /auth/register` (роль USER, подписка FREE по умолчанию)
 - [x] `POST /auth/login` (access + refresh)
-- [ ] `POST /auth/refresh` (ротация refresh)
-- [ ] `POST /auth/logout` (blacklist access; refresh stateless)
+- [x] `POST /auth/refresh` (ротация refresh)
+- [x] `POST /auth/logout` (blacklist access; refresh stateless)
 
 ## 3. Middleware
 - [x] `adapter/.../middleware/request_id` (correlation id в context)
 - [x] `adapter/.../middleware/logger` (метод, путь, статус, длительность, request_id, user_id)
 - [x] `adapter/.../middleware/recover` (восстановление после panic)
-- [ ] `adapter/.../middleware/auth` (Bearer → валидация подписи+exp → проверка blacklist → identity в context)
-- [ ] `adapter/.../middleware/role` (`RequireRole("ADMIN")` поверх auth)
+- [x] `adapter/.../middleware/auth` (Bearer → валидация подписи+exp → проверка blacklist → identity в context)
+- [x] `adapter/.../middleware/role` (`RequireRole("ADMIN")` поверх auth)
+
 
 ## 4. Users (`service/user`, `v1/user`)
 - [ ] `GET /users/me` (id, email, username, role, subscription_type, created_at)

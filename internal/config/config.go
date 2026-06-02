@@ -27,7 +27,6 @@ func (c Config) Validate() error {
 		return fmt.Errorf("jwt config: %w", err)
 	}
 
-
 	if err := c.Logger.Validate(); err != nil {
 		return fmt.Errorf("logger config: %w", err)
 	}
