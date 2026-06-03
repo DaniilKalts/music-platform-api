@@ -20,7 +20,6 @@ const (
 	notFoundTTL = 5 * time.Minute
 )
 
-// Negative caching sentinel
 var errTrackNotFoundCached = errors.New("track not found (cached)")
 
 type Cache struct {
@@ -32,7 +31,6 @@ func NewCache(client *redis.Client) *Cache {
 }
 
 func (c *Cache) Set(ctx context.Context, t *track.Track) error {
-	// Add jitter to TTL (±10%) to prevent simultaneous cache expiration
 	ttl := withJitter(trackTTL, 0.1)
 
 	data, err := json.Marshal(t)
@@ -48,7 +46,6 @@ func (c *Cache) Set(ctx context.Context, t *track.Track) error {
 }
 
 func (c *Cache) SetNotFound(ctx context.Context, id uuid.UUID) error {
-	// Negative caching for 404s
 	if err := c.client.Set(ctx, key(id), "null", notFoundTTL).Err(); err != nil {
 		return fmt.Errorf("set not found in redis: %w", err)
 	}

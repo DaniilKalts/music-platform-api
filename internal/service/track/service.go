@@ -6,18 +6,17 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/DaniilKalts/music-platform-api/internal/domain/history"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/track"
 )
 
-type Repository interface {
+type TrackRepository interface {
 	GetTrackByID(ctx context.Context, id uuid.UUID) (*track.Track, error)
 	ListTracks(ctx context.Context, limit, offset int32) ([]*track.Track, error)
 	SearchTracks(ctx context.Context, query string, limit, offset int32) ([]*track.Track, error)
-	ListGenres(ctx context.Context) ([]*track.Genre, error)
 	TrackExists(ctx context.Context, id uuid.UUID) (bool, error)
+	ListGenres(ctx context.Context) ([]*track.Genre, error)
 }
 
 type HistoryRepository interface {
@@ -28,7 +27,6 @@ type TrackCache interface {
 	Get(ctx context.Context, id uuid.UUID) (*track.Track, error)
 	Set(ctx context.Context, t *track.Track) error
 	SetNotFound(ctx context.Context, id uuid.UUID) error
-	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type GenreCache interface {
@@ -41,141 +39,102 @@ type SearchCache interface {
 	Set(ctx context.Context, query string, tracks []*track.Track) error
 }
 
-type PopularCache interface {
-	Get(ctx context.Context) ([]*track.Track, error)
-	Set(ctx context.Context, tracks []*track.Track) error
-}
-
 type Service struct {
-	repo         Repository
-	historyRepo  HistoryRepository
-	trackCache   TrackCache
-	genreCache   GenreCache
-	searchCache  SearchCache
-	popularCache PopularCache
-
-	sg singleflight.Group
+	tracks  TrackRepository
+	history HistoryRepository
+	tCache  TrackCache
+	gCache  GenreCache
+	sCache  SearchCache
 }
 
 func NewService(
-	repo Repository,
-	historyRepo HistoryRepository,
-	trackCache TrackCache,
-	genreCache GenreCache,
-	searchCache SearchCache,
-	popularCache PopularCache,
+	tracks TrackRepository,
+	history HistoryRepository,
+	tCache TrackCache,
+	gCache GenreCache,
+	sCache SearchCache,
 ) *Service {
 	return &Service{
-		repo:         repo,
-		historyRepo:  historyRepo,
-		trackCache:   trackCache,
-		genreCache:   genreCache,
-		searchCache:  searchCache,
-		popularCache: popularCache,
+		tracks:  tracks,
+		history: history,
+		tCache:  tCache,
+		gCache:  gCache,
+		sCache:  sCache,
 	}
 }
 
-var errTrackNotFoundCached = errors.New("track not found (cached)")
-
-func (s *Service) GetTrackByID(ctx context.Context, id uuid.UUID) (*track.Track, error) {
-	// 1. Try Cache
-	t, err := s.trackCache.Get(ctx, id)
+func (s *Service) GetTrack(ctx context.Context, id uuid.UUID) (*track.Track, error) {
+	t, err := s.tCache.Get(ctx, id)
 	if err == nil {
 		return t, nil
 	}
-	if errors.Is(err, errTrackNotFoundCached) {
+
+	if err.Error() == "track not found (cached)" {
 		return nil, track.ErrTrackNotFound
 	}
 
-	// 2. Use singleflight to prevent thundering herd
-	res, err, _ := s.sg.Do(fmt.Sprintf("get_track:%s", id), func() (interface{}, error) {
-		// Double check cache inside singleflight
-		if t, err := s.trackCache.Get(ctx, id); err == nil {
-			return t, nil
-		}
-
-		t, err := s.repo.GetTrackByID(ctx, id)
-		if err != nil {
-			if errors.Is(err, track.ErrTrackNotFound) {
-				_ = s.trackCache.SetNotFound(ctx, id)
-			}
+	t, err = s.tracks.GetTrackByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, track.ErrTrackNotFound) {
+			_ = s.tCache.SetNotFound(ctx, id)
 			return nil, err
 		}
-
-		_ = s.trackCache.Set(ctx, t)
-		return t, nil
-	})
-
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get track from repo: %w", err)
 	}
 
-	return res.(*track.Track), nil
+	_ = s.tCache.Set(ctx, t)
+
+	return t, nil
 }
 
-func (s *Service) ListTracks(ctx context.Context, page, limit int32) ([]*track.Track, error) {
-	offset := (page - 1) * limit
-	return s.repo.ListTracks(ctx, limit, offset)
+func (s *Service) ListTracks(ctx context.Context, limit, offset int32) ([]*track.Track, error) {
+	return s.tracks.ListTracks(ctx, limit, offset)
 }
 
-func (s *Service) SearchTracks(ctx context.Context, query string, page, limit int32) ([]*track.Track, error) {
-	cacheKey := fmt.Sprintf("%s:%d:%d", query, page, limit)
-
-	// 1. Try Cache
-	if tracks, err := s.searchCache.Get(ctx, cacheKey); err == nil {
-		return tracks, nil
-	}
-
-	// 2. Singleflight for search
-	res, err, _ := s.sg.Do(fmt.Sprintf("search:%s", cacheKey), func() (interface{}, error) {
-		offset := (page - 1) * limit
-		tracks, err := s.repo.SearchTracks(ctx, query, limit, offset)
-		if err != nil {
-			return nil, err
+func (s *Service) SearchTracks(ctx context.Context, query string, limit, offset int32) ([]*track.Track, error) {
+	if offset == 0 && limit <= 20 {
+		if cached, err := s.sCache.Get(ctx, query); err == nil {
+			return cached, nil
 		}
-
-		_ = s.searchCache.Set(ctx, cacheKey, tracks)
-		return tracks, nil
-	})
-
-	if err != nil {
-		return nil, err
 	}
 
-	return res.([]*track.Track), nil
+	tracks, err := s.tracks.SearchTracks(ctx, query, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("search tracks: %w", err)
+	}
+
+	if offset == 0 && limit <= 20 {
+		_ = s.sCache.Set(ctx, query, tracks)
+	}
+
+	return tracks, nil
 }
 
-func (s *Service) ListGenres(ctx context.Context) ([]track.Genre, error) {
-	// 1. Try Cache
-	if genres, err := s.genreCache.Get(ctx); err == nil {
-		return genres, nil
+func (s *Service) ListGenres(ctx context.Context) ([]*track.Genre, error) {
+	if cached, err := s.gCache.Get(ctx); err == nil {
+		res := make([]*track.Genre, len(cached))
+		for i := range cached {
+			res[i] = &cached[i]
+		}
+		return res, nil
 	}
 
-	// 2. Singleflight
-	res, err, _ := s.sg.Do("list_genres", func() (interface{}, error) {
-		genrePtrs, err := s.repo.ListGenres(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		genres := make([]track.Genre, len(genrePtrs))
-		for i, g := range genrePtrs {
-			genres[i] = *g
-		}
-
-		_ = s.genreCache.Set(ctx, genres)
-		return genres, nil
-	})
-
+	genres, err := s.tracks.ListGenres(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list genres: %w", err)
 	}
 
-	return res.([]track.Genre), nil
+	cacheData := make([]track.Genre, len(genres))
+	for i, g := range genres {
+		cacheData[i] = *g
+	}
+	_ = s.gCache.Set(ctx, cacheData)
+
+	return genres, nil
 }
 
 func (s *Service) PlayTrack(ctx context.Context, userID, trackID uuid.UUID) (*track.Track, error) {
-	t, err := s.GetTrackByID(ctx, trackID)
+	t, err := s.GetTrack(ctx, trackID)
 	if err != nil {
 		return nil, err
 	}
@@ -185,8 +144,8 @@ func (s *Service) PlayTrack(ctx context.Context, userID, trackID uuid.UUID) (*tr
 		return nil, err
 	}
 
-	if err := s.historyRepo.CreateListeningHistory(ctx, record); err != nil {
-		return nil, err
+	if err := s.history.CreateListeningHistory(ctx, record); err != nil {
+		return nil, fmt.Errorf("create history record: %w", err)
 	}
 
 	return t, nil

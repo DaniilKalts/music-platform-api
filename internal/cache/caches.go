@@ -14,19 +14,35 @@ import (
 type Caches struct {
 	Blacklist *blacklist.Cache
 	Refresh   *refresh.Cache
-	Track     *track.Cache
-	Genre     *genre.Cache
-	Search    *search.Cache
-	Popular   *popular.Cache
+	track     *track.Cache
+	genre     *genre.Cache
+	search    *search.Cache
+	popular   *popular.Cache
+}
+
+func (c *Caches) Track() *track.Cache {
+	return c.track
+}
+
+func (c *Caches) Genre() *genre.Cache {
+	return c.genre
+}
+
+func (c *Caches) Search() *search.Cache {
+	return c.search
+}
+
+func (c *Caches) Popular() *popular.Cache {
+	return c.popular
 }
 
 func NewCaches(client *redis.Client) *Caches {
 	return &Caches{
 		Blacklist: blacklist.NewCache(client),
 		Refresh:   refresh.NewCache(client),
-		Track:     track.NewCache(client),
-		Genre:     genre.NewCache(client),
-		Search:    search.NewCache(client),
-		Popular:   popular.NewCache(client),
+		track:     track.NewCache(client),
+		genre:     genre.NewCache(client),
+		search:    search.NewCache(client),
+		popular:   popular.NewCache(client),
 	}
 }

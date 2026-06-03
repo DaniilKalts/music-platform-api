@@ -5,11 +5,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/DaniilKalts/music-platform-api/internal/cache"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/track"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/user"
 	"github.com/DaniilKalts/music-platform-api/internal/repository"
-	serviceadmin "github.com/DaniilKalts/music-platform-api/internal/service/admin"
 	"github.com/DaniilKalts/music-platform-api/internal/service/auth"
 	servicetrack "github.com/DaniilKalts/music-platform-api/internal/service/track"
 	serviceuser "github.com/DaniilKalts/music-platform-api/internal/service/user"
@@ -28,47 +26,37 @@ type UserService interface {
 }
 
 type TrackService interface {
-	GetTrackByID(ctx context.Context, id uuid.UUID) (*track.Track, error)
-	ListTracks(ctx context.Context, page, limit int32) ([]*track.Track, error)
-	SearchTracks(ctx context.Context, query string, page, limit int32) ([]*track.Track, error)
-	ListGenres(ctx context.Context) ([]track.Genre, error)
+	GetTrack(ctx context.Context, id uuid.UUID) (*track.Track, error)
+	ListTracks(ctx context.Context, limit, offset int32) ([]*track.Track, error)
+	SearchTracks(ctx context.Context, query string, limit, offset int32) ([]*track.Track, error)
+	ListGenres(ctx context.Context) ([]*track.Genre, error)
 	PlayTrack(ctx context.Context, userID, trackID uuid.UUID) (*track.Track, error)
-}
-
-type AdminService interface {
-	CreateTrack(ctx context.Context, input serviceadmin.CreateTrackInput) (*track.Track, error)
-	UpdateTrack(ctx context.Context, input serviceadmin.UpdateTrackInput) (*track.Track, error)
-	DeleteTrack(ctx context.Context, id uuid.UUID) error
-	UpdateUserSubscription(ctx context.Context, id uuid.UUID, sub user.Subscription) (*user.User, error)
 }
 
 type Services struct {
 	Auth  AuthService
 	User  UserService
 	Track TrackService
-	Admin AdminService
 }
 
 func NewServices(
 	repositories *repository.Repositories,
 	tokenManager auth.TokenManager,
-	caches *cache.Caches,
+	blacklist auth.Blacklist,
+	refresh auth.RefreshTokens,
+	tCache servicetrack.TrackCache,
+	gCache servicetrack.GenreCache,
+	sCache servicetrack.SearchCache,
 ) *Services {
 	return &Services{
-		Auth: auth.NewService(repositories.User, tokenManager, caches.Blacklist, caches.Refresh),
+		Auth: auth.NewService(repositories.User, tokenManager, blacklist, refresh),
 		User: serviceuser.NewService(repositories.User),
 		Track: servicetrack.NewService(
 			repositories.Track,
 			repositories.History,
-			caches.Track,
-			caches.Genre,
-			caches.Search,
-			caches.Popular,
-		),
-		Admin: serviceadmin.NewService(
-			repositories.Track,
-			repositories.User,
-			caches.Track,
+			tCache,
+			gCache,
+			sCache,
 		),
 	}
 }

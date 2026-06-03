@@ -20,7 +20,6 @@ import (
 func SetupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 	t.Helper()
 
-	// Находим корень проекта для миграций
 	_, b, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(b), "../../..")
 	
