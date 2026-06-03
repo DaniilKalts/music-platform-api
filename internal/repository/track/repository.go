@@ -251,7 +251,6 @@ func (r *repository) CreateTrackWithDependencies(ctx context.Context, title, art
 
 	qtx := r.q.WithTx(tx)
 
-	// 1. Find or create artist
 	artRow, err := qtx.FindOrCreateArtist(ctx, sqlc.FindOrCreateArtistParams{
 		ID:   uuid.New(),
 		Name: artistName,
@@ -260,7 +259,6 @@ func (r *repository) CreateTrackWithDependencies(ctx context.Context, title, art
 		return nil, err
 	}
 
-	// 2. Find or create album
 	albRow, err := qtx.FindOrCreateAlbum(ctx, sqlc.FindOrCreateAlbumParams{
 		ID:   uuid.New(),
 		Name: albumName,
@@ -269,7 +267,6 @@ func (r *repository) CreateTrackWithDependencies(ctx context.Context, title, art
 		return nil, err
 	}
 
-	// 3. Check genre
 	_, err = qtx.GetGenreByID(ctx, genreID)
 	if err != nil {
 		if isNoRows(err) {
@@ -278,7 +275,6 @@ func (r *repository) CreateTrackWithDependencies(ctx context.Context, title, art
 		return nil, err
 	}
 
-	// 4. Create track
 	trackRow, err := qtx.CreateTrack(ctx, sqlc.CreateTrackParams{
 		ID:              uuid.New(),
 		Title:           title,
@@ -308,7 +304,6 @@ func (r *repository) UpdateTrackWithDependencies(ctx context.Context, id uuid.UU
 
 	qtx := r.q.WithTx(tx)
 
-	// 1. Find or create artist
 	artRow, err := qtx.FindOrCreateArtist(ctx, sqlc.FindOrCreateArtistParams{
 		ID:   uuid.New(),
 		Name: artistName,
@@ -317,7 +312,6 @@ func (r *repository) UpdateTrackWithDependencies(ctx context.Context, id uuid.UU
 		return nil, err
 	}
 
-	// 2. Find or create album
 	albRow, err := qtx.FindOrCreateAlbum(ctx, sqlc.FindOrCreateAlbumParams{
 		ID:   uuid.New(),
 		Name: albumName,
@@ -326,7 +320,6 @@ func (r *repository) UpdateTrackWithDependencies(ctx context.Context, id uuid.UU
 		return nil, err
 	}
 
-	// 3. Check genre
 	_, err = qtx.GetGenreByID(ctx, genreID)
 	if err != nil {
 		if isNoRows(err) {
@@ -335,7 +328,6 @@ func (r *repository) UpdateTrackWithDependencies(ctx context.Context, id uuid.UU
 		return nil, err
 	}
 
-	// 4. Update track
 	trackRow, err := qtx.UpdateTrack(ctx, sqlc.UpdateTrackParams{
 		ID:              id,
 		Title:           title,

@@ -26,7 +26,6 @@ func TestPlaylistRepository(t *testing.T) {
 	tRepo := trackrepo.NewRepository(pool)
 	ctx := context.Background()
 
-	// Helpers
 	createUser := func(email string) *user.User {
 		u, _ := user.NewUser(email, email)
 		p, _ := user.NewPassword("pass")

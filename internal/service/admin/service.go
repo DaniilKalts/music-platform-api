@@ -66,7 +66,6 @@ func (s *Service) UpdateTrack(ctx context.Context, input UpdateTrackInput) (*tra
 		return nil, err
 	}
 
-	// Invalidate cache
 	_ = s.trackCache.Delete(ctx, input.ID)
 
 	return updated, nil
@@ -77,7 +76,6 @@ func (s *Service) DeleteTrack(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	// Invalidate cache
 	_ = s.trackCache.Delete(ctx, id)
 
 	return nil

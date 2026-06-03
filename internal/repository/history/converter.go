@@ -10,6 +10,8 @@ func toDomainHistoryRecordFromList(row sqlc.ListListeningHistoryByUserIDRow) *hi
 		ID:         row.ID,
 		UserID:     uuidNil(),
 		TrackID:    row.TrackID,
+		TrackTitle: row.Title,
+		ArtistName: row.ArtistName,
 		ListenedAt: row.ListenedAt,
 	}
 }

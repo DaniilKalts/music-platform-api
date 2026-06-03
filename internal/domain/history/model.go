@@ -13,6 +13,9 @@ type HistoryRecord struct {
 	UserID     uuid.UUID `validate:"required"`
 	TrackID    uuid.UUID `validate:"required"`
 	ListenedAt time.Time
+
+	TrackTitle string
+	ArtistName string
 }
 
 func NewHistoryRecord(userID, trackID uuid.UUID) (*HistoryRecord, error) {

@@ -2,9 +2,12 @@ package httpx
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
+
+var ErrUserNotFoundInContext = errors.New("user not found in context")
 
 type requestIDKey struct{}
 type userIdentityKey struct{}
@@ -30,4 +33,12 @@ func WithUser(ctx context.Context, identity UserIdentity) context.Context {
 func UserFromContext(ctx context.Context) (UserIdentity, bool) {
 	identity, ok := ctx.Value(userIdentityKey{}).(UserIdentity)
 	return identity, ok
+}
+
+func ExtractUserID(ctx context.Context) (uuid.UUID, error) {
+	identity, ok := UserFromContext(ctx)
+	if !ok {
+		return uuid.Nil, ErrUserNotFoundInContext
+	}
+	return identity.ID, nil
 }

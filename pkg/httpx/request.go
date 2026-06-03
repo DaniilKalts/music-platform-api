@@ -75,3 +75,17 @@ func jsonFieldName(field string, v any) string {
 
 	return name
 }
+
+func QueryInt32(r *http.Request, key string, defaultValue int32) int32 {
+	val := r.URL.Query().Get(key)
+	if val == "" {
+		return defaultValue
+	}
+
+	var res int32
+	if _, err := fmt.Sscanf(val, "%d", &res); err != nil {
+		return defaultValue
+	}
+
+	return res
+}

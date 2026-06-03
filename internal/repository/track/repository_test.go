@@ -20,7 +20,6 @@ func TestTrackRepository(t *testing.T) {
 	repo := trackrepo.NewRepository(pool)
 	ctx := context.Background()
 
-	// Helpers to create dependencies
 	createGenre := func(name string) *track.Genre {
 		g := &track.Genre{ID: uuid.New(), Name: name}
 		created, err := repo.CreateGenre(ctx, g)

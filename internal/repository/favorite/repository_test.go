@@ -26,7 +26,6 @@ func TestFavoriteRepository(t *testing.T) {
 	tRepo := trackrepo.NewRepository(pool)
 	ctx := context.Background()
 
-	// Helpers
 	u, _ := user.NewUser("fav@example.com", "fav")
 	pass, _ := user.NewPassword("pass")
 	createdU, _ := uRepo.Create(ctx, *u, pass)
