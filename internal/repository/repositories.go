@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres/sqlc"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/favorite"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/history"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/playlist"
@@ -47,6 +47,9 @@ type TrackRepository interface {
 	CreateGenre(ctx context.Context, g *track.Genre) (*track.Genre, error)
 	ListGenres(ctx context.Context) ([]*track.Genre, error)
 	GetGenreByID(ctx context.Context, id uuid.UUID) (*track.Genre, error)
+
+	CreateTrackWithDependencies(ctx context.Context, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error)
+	UpdateTrackWithDependencies(ctx context.Context, id uuid.UUID, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error)
 }
 
 type PlaylistRepository interface {
@@ -83,13 +86,12 @@ type Repositories struct {
 	History  HistoryRepository
 }
 
-func NewRepositories(db sqlc.DBTX) *Repositories {
-	q := sqlc.New(db)
+func NewRepositories(db *pgxpool.Pool) *Repositories {
 	return &Repositories{
 		User:     userrepo.NewRepository(db),
-		Track:    trackrepo.NewRepository(q),
-		Playlist: playlistrepo.NewRepository(q),
-		Favorite: favoriterepo.NewRepository(q),
-		History:  historyrepo.NewRepository(q),
+		Track:    trackrepo.NewRepository(db),
+		Playlist: playlistrepo.NewRepository(db),
+		Favorite: favoriterepo.NewRepository(db),
+		History:  historyrepo.NewRepository(db),
 	}
 }

@@ -19,8 +19,8 @@ type repository struct {
 	q *sqlc.Queries
 }
 
-func NewRepository(q *sqlc.Queries) Repository {
-	return &repository{q: q}
+func NewRepository(db sqlc.DBTX) Repository {
+	return &repository{q: sqlc.New(db)}
 }
 
 func (r *repository) CreateListeningHistory(ctx context.Context, h *history.HistoryRecord) error {

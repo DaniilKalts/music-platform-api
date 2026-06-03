@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres/sqlc"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/track"
 	"github.com/DaniilKalts/music-platform-api/internal/repository/testutil"
 	"github.com/DaniilKalts/music-platform-api/internal/repository/track"
@@ -18,8 +17,7 @@ func TestTrackRepository(t *testing.T) {
 	pool, cleanup := testutil.SetupTestDB(t)
 	defer cleanup()
 
-	q := sqlc.New(pool)
-	repo := trackrepo.NewRepository(q)
+	repo := trackrepo.NewRepository(pool)
 	ctx := context.Background()
 
 	// Helpers to create dependencies

@@ -15,33 +15,23 @@ import (
 
 type mockTrackRepo struct{ mock.Mock }
 
-func (m *mockTrackRepo) CreateTrack(ctx context.Context, t *track.Track) (*track.Track, error) {
-	args := m.Called(ctx, t)
+func (m *mockTrackRepo) CreateTrackWithDependencies(ctx context.Context, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error) {
+	args := m.Called(ctx, title, artistName, albumName, genreID, durationSeconds, fileURL)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*track.Track), args.Error(1)
 }
-func (m *mockTrackRepo) UpdateTrack(ctx context.Context, t *track.Track) (*track.Track, error) {
-	args := m.Called(ctx, t)
+func (m *mockTrackRepo) UpdateTrackWithDependencies(ctx context.Context, id uuid.UUID, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error) {
+	args := m.Called(ctx, id, title, artistName, albumName, genreID, durationSeconds, fileURL)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*track.Track), args.Error(1)
 }
 func (m *mockTrackRepo) SoftDeleteTrack(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
-}
-func (m *mockTrackRepo) GetTrackByID(ctx context.Context, id uuid.UUID) (*track.Track, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(*track.Track), args.Error(1)
-}
-func (m *mockTrackRepo) FindOrCreateArtist(ctx context.Context, a *track.Artist) (*track.Artist, error) {
-	args := m.Called(ctx, a)
-	return args.Get(0).(*track.Artist), args.Error(1)
-}
-func (m *mockTrackRepo) FindOrCreateAlbum(ctx context.Context, a *track.Album) (*track.Album, error) {
-	args := m.Called(ctx, a)
-	return args.Get(0).(*track.Album), args.Error(1)
-}
-func (m *mockTrackRepo) GetGenreByID(ctx context.Context, id uuid.UUID) (*track.Genre, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(*track.Genre), args.Error(1)
 }
 
 type mockUserRepo struct{ mock.Mock }
@@ -75,14 +65,8 @@ func TestCreateTrack(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		artist := &track.Artist{ID: uuid.New(), Name: input.ArtistName}
-		album := &track.Album{ID: uuid.New(), Name: input.AlbumName}
-		genre := &track.Genre{ID: input.GenreID, Name: "Rock"}
-
-		mTrack.On("FindOrCreateArtist", ctx, mock.Anything).Return(artist, nil)
-		mTrack.On("FindOrCreateAlbum", ctx, mock.Anything).Return(album, nil)
-		mTrack.On("GetGenreByID", ctx, input.GenreID).Return(genre, nil)
-		mTrack.On("CreateTrack", ctx, mock.Anything).Return(&track.Track{ID: uuid.New()}, nil)
+		mTrack.On("CreateTrackWithDependencies", ctx, input.Title, input.ArtistName, input.AlbumName, input.GenreID, input.DurationSeconds, input.FileURL).
+			Return(&track.Track{ID: uuid.New()}, nil)
 
 		res, err := s.CreateTrack(ctx, input)
 		assert.NoError(t, err)

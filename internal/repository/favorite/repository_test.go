@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres/sqlc"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/favorite"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/track"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/user"
@@ -22,10 +21,9 @@ func TestFavoriteRepository(t *testing.T) {
 	pool, cleanup := testutil.SetupTestDB(t)
 	defer cleanup()
 
-	q := sqlc.New(pool)
-	repo := favoriterepo.NewRepository(q)
+	repo := favoriterepo.NewRepository(pool)
 	uRepo := userrepo.NewRepository(pool)
-	tRepo := trackrepo.NewRepository(q)
+	tRepo := trackrepo.NewRepository(pool)
 	ctx := context.Background()
 
 	// Helpers

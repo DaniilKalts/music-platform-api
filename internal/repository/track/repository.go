@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres/sqlc"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/track"
@@ -29,14 +30,21 @@ type Repository interface {
 	CreateGenre(ctx context.Context, g *track.Genre) (*track.Genre, error)
 	ListGenres(ctx context.Context) ([]*track.Genre, error)
 	GetGenreByID(ctx context.Context, id uuid.UUID) (*track.Genre, error)
+
+	CreateTrackWithDependencies(ctx context.Context, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error)
+	UpdateTrackWithDependencies(ctx context.Context, id uuid.UUID, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error)
 }
 
 type repository struct {
-	q *sqlc.Queries
+	db *pgxpool.Pool
+	q  *sqlc.Queries
 }
 
-func NewRepository(q *sqlc.Queries) Repository {
-	return &repository{q: q}
+func NewRepository(db *pgxpool.Pool) Repository {
+	return &repository{
+		db: db,
+		q:  sqlc.New(db),
+	}
 }
 
 func (r *repository) CreateTrack(ctx context.Context, t *track.Track) (*track.Track, error) {
@@ -232,6 +240,123 @@ func (r *repository) GetGenreByID(ctx context.Context, id uuid.UUID) (*track.Gen
 		return nil, err
 	}
 	return toDomainGenreFromGet(row), nil
+}
+
+func (r *repository) CreateTrackWithDependencies(ctx context.Context, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := r.q.WithTx(tx)
+
+	// 1. Find or create artist
+	artRow, err := qtx.FindOrCreateArtist(ctx, sqlc.FindOrCreateArtistParams{
+		ID:   uuid.New(),
+		Name: artistName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Find or create album
+	albRow, err := qtx.FindOrCreateAlbum(ctx, sqlc.FindOrCreateAlbumParams{
+		ID:   uuid.New(),
+		Name: albumName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Check genre
+	_, err = qtx.GetGenreByID(ctx, genreID)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, track.ErrGenreNotFound
+		}
+		return nil, err
+	}
+
+	// 4. Create track
+	trackRow, err := qtx.CreateTrack(ctx, sqlc.CreateTrackParams{
+		ID:              uuid.New(),
+		Title:           title,
+		ArtistID:        artRow.ID,
+		AlbumID:         albRow.ID,
+		GenreID:         genreID,
+		DurationSeconds: int32(durationSeconds),
+		FileUrl:         fileURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return toDomainTrackFromCreate(trackRow), nil
+}
+
+func (r *repository) UpdateTrackWithDependencies(ctx context.Context, id uuid.UUID, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := r.q.WithTx(tx)
+
+	// 1. Find or create artist
+	artRow, err := qtx.FindOrCreateArtist(ctx, sqlc.FindOrCreateArtistParams{
+		ID:   uuid.New(),
+		Name: artistName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Find or create album
+	albRow, err := qtx.FindOrCreateAlbum(ctx, sqlc.FindOrCreateAlbumParams{
+		ID:   uuid.New(),
+		Name: albumName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Check genre
+	_, err = qtx.GetGenreByID(ctx, genreID)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, track.ErrGenreNotFound
+		}
+		return nil, err
+	}
+
+	// 4. Update track
+	trackRow, err := qtx.UpdateTrack(ctx, sqlc.UpdateTrackParams{
+		ID:              id,
+		Title:           title,
+		ArtistID:        artRow.ID,
+		AlbumID:         albRow.ID,
+		GenreID:         genreID,
+		DurationSeconds: int32(durationSeconds),
+		FileUrl:         fileURL,
+	})
+	if err != nil {
+		if isNoRows(err) {
+			return nil, track.ErrTrackNotFound
+		}
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return toDomainTrackFromUpdate(trackRow), nil
 }
 
 func isNoRows(err error) bool {

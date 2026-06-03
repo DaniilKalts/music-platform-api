@@ -10,14 +10,9 @@ import (
 )
 
 type TrackRepository interface {
-	CreateTrack(ctx context.Context, t *track.Track) (*track.Track, error)
-	UpdateTrack(ctx context.Context, t *track.Track) (*track.Track, error)
+	CreateTrackWithDependencies(ctx context.Context, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error)
+	UpdateTrackWithDependencies(ctx context.Context, id uuid.UUID, title, artistName, albumName string, genreID uuid.UUID, durationSeconds int, fileURL string) (*track.Track, error)
 	SoftDeleteTrack(ctx context.Context, id uuid.UUID) error
-	GetTrackByID(ctx context.Context, id uuid.UUID) (*track.Track, error)
-
-	FindOrCreateArtist(ctx context.Context, a *track.Artist) (*track.Artist, error)
-	FindOrCreateAlbum(ctx context.Context, a *track.Album) (*track.Album, error)
-	GetGenreByID(ctx context.Context, id uuid.UUID) (*track.Genre, error)
 }
 
 type UserRepository interface {
@@ -52,39 +47,7 @@ type CreateTrackInput struct {
 }
 
 func (s *Service) CreateTrack(ctx context.Context, input CreateTrackInput) (*track.Track, error) {
-	// 1. Find or create artist
-	artist, err := track.NewArtist(input.ArtistName)
-	if err != nil {
-		return nil, err
-	}
-	artist, err = s.trackRepo.FindOrCreateArtist(ctx, artist)
-	if err != nil {
-		return nil, err
-	}
-
-	// 2. Find or create album
-	album, err := track.NewAlbum(input.AlbumName)
-	if err != nil {
-		return nil, err
-	}
-	album, err = s.trackRepo.FindOrCreateAlbum(ctx, album)
-	if err != nil {
-		return nil, err
-	}
-
-	// 3. Check genre
-	_, err = s.trackRepo.GetGenreByID(ctx, input.GenreID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 4. Create track
-	t, err := track.NewTrack(input.Title, artist.ID, album.ID, input.GenreID, input.DurationSeconds, input.FileURL)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.trackRepo.CreateTrack(ctx, t)
+	return s.trackRepo.CreateTrackWithDependencies(ctx, input.Title, input.ArtistName, input.AlbumName, input.GenreID, input.DurationSeconds, input.FileURL)
 }
 
 type UpdateTrackInput struct {
@@ -98,49 +61,12 @@ type UpdateTrackInput struct {
 }
 
 func (s *Service) UpdateTrack(ctx context.Context, input UpdateTrackInput) (*track.Track, error) {
-	// 1. Get existing track
-	t, err := s.trackRepo.GetTrackByID(ctx, input.ID)
+	updated, err := s.trackRepo.UpdateTrackWithDependencies(ctx, input.ID, input.Title, input.ArtistName, input.AlbumName, input.GenreID, input.DurationSeconds, input.FileURL)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Find or create artist
-	artist, err := track.NewArtist(input.ArtistName)
-	if err != nil {
-		return nil, err
-	}
-	artist, err = s.trackRepo.FindOrCreateArtist(ctx, artist)
-	if err != nil {
-		return nil, err
-	}
-
-	// 3. Find or create album
-	album, err := track.NewAlbum(input.AlbumName)
-	if err != nil {
-		return nil, err
-	}
-	album, err = s.trackRepo.FindOrCreateAlbum(ctx, album)
-	if err != nil {
-		return nil, err
-	}
-
-	// 4. Check genre
-	_, err = s.trackRepo.GetGenreByID(ctx, input.GenreID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 5. Update track
-	if err := t.Update(input.Title, artist.ID, album.ID, input.GenreID, input.DurationSeconds, input.FileURL); err != nil {
-		return nil, err
-	}
-
-	updated, err := s.trackRepo.UpdateTrack(ctx, t)
-	if err != nil {
-		return nil, err
-	}
-
-	// 6. Invalidate cache
+	// Invalidate cache
 	_ = s.trackCache.Delete(ctx, input.ID)
 
 	return updated, nil
