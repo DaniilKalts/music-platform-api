@@ -1,4 +1,4 @@
-package user
+package userrepo
 
 import (
 	"context"
@@ -117,6 +117,29 @@ func (r *Repository) UpdateProfile(ctx context.Context, id uuid.UUID, email, use
 		default:
 			return nil, fmt.Errorf("update user profile: %w", err)
 		}
+	}
+
+	return toDomain(userRow{
+		ID:               row.ID,
+		Email:            row.Email,
+		Username:         row.Username,
+		Role:             row.Role,
+		SubscriptionType: row.SubscriptionType,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
+	}), nil
+}
+
+func (r *Repository) UpdateSubscription(ctx context.Context, id uuid.UUID, sub user.Subscription) (*user.User, error) {
+	row, err := r.queries.UpdateUserSubscription(ctx, sqlc.UpdateUserSubscriptionParams{
+		ID:               id,
+		SubscriptionType: sqlc.SubscriptionType(sub),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, user.ErrNotFound
+		}
+		return nil, fmt.Errorf("update user subscription: %w", err)
 	}
 
 	return toDomain(userRow{

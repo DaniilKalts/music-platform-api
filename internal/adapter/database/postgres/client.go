@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,8 +13,6 @@ import (
 
 	"github.com/DaniilKalts/music-platform-api/internal/config"
 )
-
-const migrationsDir = "./database/migrations"
 
 func NewClient(ctx context.Context, cfg *config.Postgres) (*pgxpool.Pool, error) {
 	if err := runMigrations(cfg); err != nil {
@@ -45,6 +44,7 @@ func NewClient(ctx context.Context, cfg *config.Postgres) (*pgxpool.Pool, error)
 }
 
 func runMigrations(cfg *config.Postgres) error {
+	dir := getEnv("MIGRATIONS_DIR", "./database/migrations")
 	db, err := sql.Open("pgx", cfg.DSN())
 	if err != nil {
 		return fmt.Errorf("open postgres for migrations: %w", err)
@@ -55,9 +55,16 @@ func runMigrations(cfg *config.Postgres) error {
 		return fmt.Errorf("set goose dialect: %w", err)
 	}
 
-	if err := goose.Up(db, migrationsDir); err != nil {
+	if err := goose.Up(db, dir); err != nil {
 		return fmt.Errorf("apply postgres migrations: %w", err)
 	}
 
 	return nil
+}
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }
