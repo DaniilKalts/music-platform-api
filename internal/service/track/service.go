@@ -27,6 +27,7 @@ type TrackCache interface {
 	Get(ctx context.Context, id uuid.UUID) (*track.Track, error)
 	Set(ctx context.Context, t *track.Track) error
 	SetNotFound(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type GenreCache interface {

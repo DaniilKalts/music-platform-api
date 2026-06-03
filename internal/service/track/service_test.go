@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/DaniilKalts/music-platform-api/internal/domain/history"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/track"
 	service "github.com/DaniilKalts/music-platform-api/internal/service/track"
 )
@@ -41,7 +42,7 @@ func (m *mockTrackRepo) ListGenres(ctx context.Context) ([]*track.Genre, error) 
 
 type mockHistoryRepo struct{ mock.Mock }
 
-func (m *mockHistoryRepo) CreateListeningHistory(ctx context.Context, h interface{}) error {
+func (m *mockHistoryRepo) CreateListeningHistory(ctx context.Context, h *history.HistoryRecord) error {
 	args := m.Called(ctx, h)
 	return args.Error(0)
 }
@@ -60,6 +61,10 @@ func (m *mockTrackCache) Set(ctx context.Context, t *track.Track) error {
 	return args.Error(0)
 }
 func (m *mockTrackCache) SetNotFound(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+func (m *mockTrackCache) Delete(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }

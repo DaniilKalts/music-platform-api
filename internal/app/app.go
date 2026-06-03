@@ -29,8 +29,13 @@ func NewApp(cfg *config.Config, logger *zap.Logger) (*App, error) {
 	router := transporthttp.NewRouter(
 		c.Logger,
 		v1.Dependencies{
-			AuthService: c.Services.Auth,
-			UserService: c.Services.User,
+			AuthService:     c.Services.Auth,
+			UserService:     c.Services.User,
+			TrackService:    c.Services.Track,
+			PlaylistService: c.Services.Playlist,
+			FavoriteService: c.Services.Favorite,
+			HistoryService:  c.Services.History,
+			AdminService:    c.Services.Admin,
 		},
 		c.TokenManager,
 		c.Caches.Blacklist,

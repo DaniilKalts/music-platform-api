@@ -71,6 +71,7 @@ func NewContainer(cfg *config.Config, logger *zap.Logger) (_ *Container, err err
 		caches.Genre(),
 		caches.Search(),
 		cfg.Limits.FreeFavoritesLimit,
+		cfg.Limits.FreePlaylistLimit,
 	)
 
 	return &Container{
