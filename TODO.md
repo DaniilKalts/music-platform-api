@@ -90,9 +90,9 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 
 ## 1. БД, миграции, sqlc
 - [x] `sqlc.yaml` (engine postgresql, sql_package pgx/v5)
-- [ ] Миграции goose: `users`, `subscriptions`, `artists`, `albums`, `genres`, `tracks`, `playlists`, `playlist_tracks`, `favorites`, `listening_history`
+- [x] Миграции goose: `users`, `subscriptions`, `artists`, `albums`, `genres`, `tracks`, `playlists`, `playlist_tracks`, `favorites`, `listening_history`
 - [ ] Seed-миграция: фиксированный список `genres` (справочник, только чтение)
-- [ ] Индексы: поиск треков, FK, уникальность (`favorites(user_id,track_id)`, `artists(name)`, `albums(name)` и т.п.)
+- [x] Индексы: поиск треков, FK, уникальность (`favorites(user_id,track_id)`, `artists(name)`, `albums(name)` и т.п.)
 - [ ] `database/queries/*.sql` под каждый домен → `sqlc generate`
 - [x] Миграции прогоняются автоматически при старте (goose)
 

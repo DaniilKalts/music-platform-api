@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type SubscriptionType string
@@ -94,6 +95,68 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.UserRole), nil
+}
+
+type Album struct {
+	ID        uuid.UUID
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type Artist struct {
+	ID        uuid.UUID
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type Favorite struct {
+	UserID    uuid.UUID
+	TrackID   uuid.UUID
+	CreatedAt time.Time
+}
+
+type Genre struct {
+	ID        uuid.UUID
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type ListeningHistory struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	TrackID    uuid.UUID
+	ListenedAt time.Time
+}
+
+type Playlist struct {
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	Name        string
+	Description pgtype.Text
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PlaylistTrack struct {
+	PlaylistID uuid.UUID
+	TrackID    uuid.UUID
+	AddedAt    time.Time
+}
+
+type Track struct {
+	ID              uuid.UUID
+	Title           string
+	ArtistID        uuid.UUID
+	AlbumID         uuid.UUID
+	GenreID         uuid.UUID
+	DurationSeconds int32
+	FileUrl         string
+	DeletedAt       *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type User struct {
