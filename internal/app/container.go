@@ -70,6 +70,7 @@ func NewContainer(cfg *config.Config, logger *zap.Logger) (_ *Container, err err
 		caches.Track(),
 		caches.Genre(),
 		caches.Search(),
+		cfg.Limits.FreeFavoritesLimit,
 	)
 
 	return &Container{

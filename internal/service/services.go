@@ -5,10 +5,13 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/DaniilKalts/music-platform-api/internal/domain/history"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/track"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/user"
 	"github.com/DaniilKalts/music-platform-api/internal/repository"
 	"github.com/DaniilKalts/music-platform-api/internal/service/auth"
+	servicefavorite "github.com/DaniilKalts/music-platform-api/internal/service/favorite"
+	servicehistory "github.com/DaniilKalts/music-platform-api/internal/service/history"
 	servicetrack "github.com/DaniilKalts/music-platform-api/internal/service/track"
 	serviceuser "github.com/DaniilKalts/music-platform-api/internal/service/user"
 )
@@ -33,10 +36,22 @@ type TrackService interface {
 	PlayTrack(ctx context.Context, userID, trackID uuid.UUID) (*track.Track, error)
 }
 
+type FavoriteService interface {
+	AddFavorite(ctx context.Context, userID, trackID uuid.UUID) error
+	RemoveFavorite(ctx context.Context, userID, trackID uuid.UUID) error
+	ListFavorites(ctx context.Context, userID uuid.UUID) ([]*track.Track, error)
+}
+
+type HistoryService interface {
+	ListHistory(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*history.HistoryRecord, error)
+}
+
 type Services struct {
-	Auth  AuthService
-	User  UserService
-	Track TrackService
+	Auth     AuthService
+	User     UserService
+	Track    TrackService
+	Favorite FavoriteService
+	History  HistoryService
 }
 
 func NewServices(
@@ -47,6 +62,7 @@ func NewServices(
 	tCache servicetrack.TrackCache,
 	gCache servicetrack.GenreCache,
 	sCache servicetrack.SearchCache,
+	freeFavLimit int,
 ) *Services {
 	return &Services{
 		Auth: auth.NewService(repositories.User, tokenManager, blacklist, refresh),
@@ -58,5 +74,7 @@ func NewServices(
 			gCache,
 			sCache,
 		),
+		Favorite: servicefavorite.NewService(repositories.Favorite, repositories.User, freeFavLimit),
+		History:  servicehistory.NewService(repositories.History),
 	}
 }

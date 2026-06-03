@@ -8,6 +8,12 @@ type Config struct {
 	Redis    Redis    `envPrefix:"REDIS_"`
 	JWT      JWT      `envPrefix:"JWT_"`
 	Logger   Logger   `envPrefix:"LOG_"`
+	Limits   Limits
+}
+
+type Limits struct {
+	FreePlaylistLimit  int `env:"FREE_PLAYLIST_LIMIT" envDefault:"3"`
+	FreeFavoritesLimit int `env:"FREE_FAVORITES_LIMIT" envDefault:"20"`
 }
 
 func (c Config) Validate() error {
