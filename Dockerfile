@@ -8,4 +8,5 @@ WORKDIR /app
 COPY --from=builder /app/music-api .
 COPY api/v1 ./api/v1
 COPY web/swagger ./web/swagger
+COPY database/migrations ./database/migrations
 CMD ["./music-api"]
