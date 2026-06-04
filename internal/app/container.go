@@ -10,6 +10,7 @@ import (
 
 	redisadapter "github.com/DaniilKalts/music-platform-api/internal/adapter/cache/redis"
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres"
+	s3adapter "github.com/DaniilKalts/music-platform-api/internal/adapter/storage/s3"
 	"github.com/DaniilKalts/music-platform-api/internal/cache"
 	"github.com/DaniilKalts/music-platform-api/internal/config"
 	"github.com/DaniilKalts/music-platform-api/internal/repository"
@@ -23,6 +24,7 @@ type Container struct {
 
 	DB    *pgxpool.Pool
 	Redis *redis.Client
+	S3    *s3adapter.Client
 
 	Repositories *repository.Repositories
 	Caches       *cache.Caches
@@ -54,6 +56,11 @@ func NewContainer(cfg *config.Config, logger *zap.Logger) (_ *Container, err err
 		}
 	}()
 
+	s3Client, err := s3adapter.NewClient(ctx, &cfg.S3)
+	if err != nil {
+		return nil, fmt.Errorf("s3: %w", err)
+	}
+
 	repositories := repository.NewRepositories(db)
 	caches := cache.NewCaches(redisClient)
 	tokenManager := jwtpkg.NewManager(
@@ -72,6 +79,7 @@ func NewContainer(cfg *config.Config, logger *zap.Logger) (_ *Container, err err
 		caches.Search(),
 		cfg.Limits.FreeFavoritesLimit,
 		cfg.Limits.FreePlaylistLimit,
+		s3Client,
 	)
 
 	return &Container{
@@ -79,6 +87,7 @@ func NewContainer(cfg *config.Config, logger *zap.Logger) (_ *Container, err err
 		Logger:       logger,
 		DB:           db,
 		Redis:        redisClient,
+		S3:           s3Client,
 		Repositories: repositories,
 		Caches:       caches,
 		TokenManager: tokenManager,

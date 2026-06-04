@@ -5,12 +5,29 @@ tracks:
     requestBody:
       required: true
       content:
-        application/json:
+        multipart/form-data:
           schema:
-            $ref: '../components/schemas/admin.yaml#/CreateTrackRequest'
+            type: object
+            properties:
+              title:
+                type: string
+              artist_name:
+                type: string
+              album_name:
+                type: string
+              genre_id:
+                type: string
+                format: uuid
+              duration_seconds:
+                type: integer
+              file:
+                type: string
+                format: binary
+            required: [title, artist_name, album_name, genre_id, duration_seconds, file]
     responses:
       '201':
-        content:
+...
+
           application/json:
             schema:
               $ref: '../components/schemas/track.yaml#/TrackResponse'

@@ -87,6 +87,7 @@ func NewServices(
 	sCache servicetrack.SearchCache,
 	freeFavLimit int,
 	freePlaylistLimit int,
+	storage serviceadmin.FileStorage,
 ) *Services {
 	return &Services{
 		Auth: auth.NewService(repositories.User, tokenManager, blacklist, refresh),
@@ -101,6 +102,6 @@ func NewServices(
 		Favorite: servicefavorite.NewService(repositories.Favorite, repositories.User, freeFavLimit),
 		Playlist: serviceplaylist.NewService(repositories.Playlist, repositories.User, freePlaylistLimit),
 		History:  servicehistory.NewService(repositories.History),
-		Admin:    serviceadmin.NewService(repositories.Track, repositories.User, tCache),
+		Admin:    serviceadmin.NewService(repositories.Track, repositories.User, tCache, storage),
 	}
 }

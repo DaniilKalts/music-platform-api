@@ -8,6 +8,7 @@ type Config struct {
 	Redis    Redis    `envPrefix:"REDIS_"`
 	JWT      JWT      `envPrefix:"JWT_"`
 	Logger   Logger   `envPrefix:"LOG_"`
+	S3       S3
 	Limits   Limits
 }
 
@@ -35,6 +36,10 @@ func (c Config) Validate() error {
 
 	if err := c.Logger.Validate(); err != nil {
 		return fmt.Errorf("logger config: %w", err)
+	}
+
+	if err := c.S3.Validate(); err != nil {
+		return fmt.Errorf("s3 config: %w", err)
 	}
 
 	return nil

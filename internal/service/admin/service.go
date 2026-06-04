@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"io"
 
 	"github.com/google/uuid"
 
@@ -23,17 +24,24 @@ type TrackCache interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
+type FileStorage interface {
+	Upload(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error)
+	Delete(ctx context.Context, fileURL string) error
+}
+
 type Service struct {
 	trackRepo  TrackRepository
 	userRepo   UserRepository
 	trackCache TrackCache
+	storage    FileStorage
 }
 
-func NewService(trackRepo TrackRepository, userRepo UserRepository, trackCache TrackCache) *Service {
+func NewService(trackRepo TrackRepository, userRepo UserRepository, trackCache TrackCache, storage FileStorage) *Service {
 	return &Service{
 		trackRepo:  trackRepo,
 		userRepo:   userRepo,
 		trackCache: trackCache,
+		storage:    storage,
 	}
 }
 
@@ -43,11 +51,25 @@ type CreateTrackInput struct {
 	AlbumName       string
 	GenreID         uuid.UUID
 	DurationSeconds int
-	FileURL         string
+	File            io.Reader
+	FileSize        int64
+	ContentType     string
+	Filename        string
 }
 
 func (s *Service) CreateTrack(ctx context.Context, input CreateTrackInput) (*track.Track, error) {
-	return s.trackRepo.CreateTrackWithDependencies(ctx, input.Title, input.ArtistName, input.AlbumName, input.GenreID, input.DurationSeconds, input.FileURL)
+	fileURL, err := s.storage.Upload(ctx, input.Filename, input.File, input.FileSize, input.ContentType)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := s.trackRepo.CreateTrackWithDependencies(ctx, input.Title, input.ArtistName, input.AlbumName, input.GenreID, input.DurationSeconds, fileURL)
+	if err != nil {
+		_ = s.storage.Delete(ctx, fileURL)
+		return nil, err
+	}
+
+	return t, nil
 }
 
 type UpdateTrackInput struct {

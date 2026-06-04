@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -32,24 +33,51 @@ func NewHandler(service Service) *Handler {
 }
 
 func (h *Handler) CreateTrack(w http.ResponseWriter, r *http.Request) {
-	var req CreateTrackRequest
-	if !httpx.DecodeJSON(w, r, &req) {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "failed to parse multipart form")
 		return
 	}
 
-	genreID, err := uuid.Parse(req.GenreID)
+	title := r.FormValue("title")
+	artistName := r.FormValue("artist_name")
+	albumName := r.FormValue("album_name")
+	genreIDStr := r.FormValue("genre_id")
+	durationStr := r.FormValue("duration_seconds")
+
+	if title == "" || artistName == "" || albumName == "" || genreIDStr == "" || durationStr == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "missing required fields")
+		return
+	}
+
+	genreID, err := uuid.Parse(genreIDStr)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid genre id")
 		return
 	}
 
+	duration, err := strconv.Atoi(durationStr)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid duration")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "file is required")
+		return
+	}
+	defer file.Close()
+
 	t, err := h.service.CreateTrack(r.Context(), serviceadmin.CreateTrackInput{
-		Title:           req.Title,
-		ArtistName:      req.ArtistName,
-		AlbumName:       req.AlbumName,
+		Title:           title,
+		ArtistName:      artistName,
+		AlbumName:       albumName,
 		GenreID:         genreID,
-		DurationSeconds: req.DurationSeconds,
-		FileURL:         req.FileURL,
+		DurationSeconds: duration,
+		File:            file,
+		FileSize:        header.Size,
+		ContentType:     header.Header.Get("Content-Type"),
+		Filename:        header.Filename,
 	})
 	if err != nil {
 		httpx.WriteInternalError(w, r, err)
