@@ -108,7 +108,6 @@
 - [x] `genres` — список жанров (сид-справочник)
 - [x] результаты поиска
 - [x] cache-aside: read-through + инвалидация при записи
-- [ ] `popular_tracks` — только вместе с опциональной фичей «топ популярных» (§Опционально)
 
 ## 11. Обработка ошибок
 - [x] Доменные ошибки (`domain/<d>/errors.go`) → маппинг в HTTP в хендлере
@@ -122,8 +121,6 @@
 ## 13. Тесты
 - [x] Сервисы: unit + `mocks_test.go` (intf потребителя), require/assert, error-пути
 - [x] Хендлеры: `httptest` (статус, JSON, валидация)
-- [ ] Репозитории: `repository_integration_test.go` (testcontainers postgres, `-tags=integration`)
-- [ ] Кэш: integration (testcontainers redis, `-tags=integration`)
 - [x] Обязательно: register, login, profile, создание плейлиста, добавление в избранное, лимит плейлистов FREE, доступ к admin-эндпоинтам (готовность 100%)
 
 ## 14. README
@@ -139,11 +136,6 @@
 ---
 
 ## Опционально (для усиления)
-- [ ] Топ популярных треков
-- [ ] Рекомендации на основе истории
 - [x] Загрузка обложек альбомов (S3/RustFS) — реализовано для треков
-- [ ] Rate limiting
-- [ ] Ротация refresh-токенов
-- [ ] Audit log действий администратора
+- [x] Ротация refresh-токенов
 - [x] Graceful shutdown (если не сделан в §0)
-- [ ] Prometheus metrics
