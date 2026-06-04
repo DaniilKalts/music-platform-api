@@ -36,8 +36,7 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req CreatePlaylistRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
 
@@ -114,8 +113,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req UpdatePlaylistRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
 

@@ -1,8 +1,6 @@
 package playlist
 
 import (
-	"github.com/google/uuid"
-
 	"github.com/DaniilKalts/music-platform-api/internal/domain/playlist"
 )
 

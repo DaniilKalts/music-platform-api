@@ -33,8 +33,7 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) CreateTrack(w http.ResponseWriter, r *http.Request) {
 	var req CreateTrackRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
 
@@ -68,8 +67,7 @@ func (h *Handler) UpdateTrack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req UpdateTrackRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
 
@@ -127,14 +125,13 @@ func (h *Handler) UpdateUserSubscription(w http.ResponseWriter, r *http.Request)
 	}
 
 	var req UpdateSubscriptionRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
 
 	u, err := h.service.UpdateUserSubscription(r.Context(), id, req.Type)
 	if err != nil {
-		if errors.Is(err, domainuser.ErrUserNotFound) {
+		if errors.Is(err, domainuser.ErrNotFound) {
 			httpx.WriteError(w, http.StatusNotFound, err.Error())
 			return
 		}
