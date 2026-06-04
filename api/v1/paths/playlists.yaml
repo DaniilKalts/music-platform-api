@@ -1,0 +1,141 @@
+playlists:
+  post:
+    tags: ["Плейлисты 📃"]
+    summary: Создать плейлист
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/playlist.yaml#/CreatePlaylistRequest'
+    responses:
+      '201':
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/playlist.yaml#/PlaylistResponse'
+      '403':
+        $ref: '../openapi.yaml#/components/responses/Forbidden'
+  get:
+    tags: ["Плейлисты 📃"]
+    summary: Мои плейлисты
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/playlist.yaml#/PlaylistResponse'
+
+playlistByID:
+  get:
+    tags: ["Плейлисты 📃"]
+    summary: Получить плейлист
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/playlist.yaml#/PlaylistResponse'
+  put:
+    tags: ["Плейлисты 📃"]
+    summary: Обновить плейлист
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/playlist.yaml#/UpdatePlaylistRequest'
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/playlist.yaml#/PlaylistResponse'
+  delete:
+    tags: ["Плейлисты 📃"]
+    summary: Удалить плейлист
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Удалено
+
+playlistTracks:
+  get:
+    tags: ["Плейлисты 📃"]
+    summary: Треки в плейлисте
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/track.yaml#/TrackResponse'
+
+playlistTrackByID:
+  post:
+    tags: ["Плейлисты 📃"]
+    summary: Добавить трек в плейлист
+    parameters:
+      - name: playlistID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: trackID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '201':
+        description: Добавлено
+  delete:
+    tags: ["Плейлисты 📃"]
+    summary: Удалить трек из плейлиста
+    parameters:
+      - name: playlistID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: trackID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Удалено

@@ -1,0 +1,93 @@
+tracks:
+  get:
+    tags: ["Треки 🎧"]
+    summary: Список треков
+    parameters:
+      - $ref: '../openapi.yaml#/components/parameters/Limit'
+      - $ref: '../openapi.yaml#/components/parameters/Offset'
+    responses:
+      '200':
+        description: Список треков
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/track.yaml#/TrackResponse'
+
+search:
+  get:
+    tags: ["Треки 🎧"]
+    summary: Поиск треков
+    parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+      - $ref: '../openapi.yaml#/components/parameters/Limit'
+      - $ref: '../openapi.yaml#/components/parameters/Offset'
+    responses:
+      '200':
+        description: Результаты поиска
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/track.yaml#/TrackResponse'
+
+genres:
+  get:
+    tags: ["Треки 🎧"]
+    summary: Список жанров
+    responses:
+      '200':
+        description: Список жанров
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/track.yaml#/GenreResponse'
+
+trackByID:
+  get:
+    tags: ["Треки 🎧"]
+    summary: Получить трек по ID
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/track.yaml#/TrackResponse'
+      '404':
+        $ref: '../openapi.yaml#/components/responses/NotFound'
+
+play:
+  post:
+    tags: ["Треки 🎧"]
+    summary: Прослушать трек
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Трек доступен для проигрывания
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/track.yaml#/TrackResponse'
+      '404':
+        $ref: '../openapi.yaml#/components/responses/NotFound'

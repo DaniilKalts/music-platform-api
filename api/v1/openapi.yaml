@@ -1,0 +1,153 @@
+openapi: 3.1.0
+info:
+  title: "Music Platform API 🎵"
+  version: 1.0.0
+  description: |
+    REST API для музыкальной платформы.
+
+    Возможности:
+    * Аутентификация через JWT (Access + Refresh токены)
+    * Управление профилем пользователя
+    * Каталог треков, поиск и история прослушиваний
+    * Плейлисты и избранное (с учетом лимитов подписки)
+    * Администрирование контента и подписок
+
+servers:
+  - url: http://localhost:8080
+    description: Локальный сервер разработки
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: "Аутентификация 🔐"
+    description: Регистрация, вход, обновление токенов и выход
+  - name: "Профиль 👤"
+    description: Управление личными данными текущего пользователя
+  - name: "Треки 🎧"
+    description: Просмотр каталога, поиск и прослушивание
+  - name: "Плейлисты 📃"
+    description: Управление личными плейлистами
+  - name: "Избранное ⭐"
+    description: Управление списком избранных треков
+  - name: "История 🕑"
+    description: Просмотр истории прослушиваний
+  - name: "Администрирование 🛠"
+    description: Управление каталогом и подписками (только для ADMIN)
+
+paths:
+  /api/v1/auth/register:
+    $ref: './paths/auth.yaml#/register'
+  /api/v1/auth/login:
+    $ref: './paths/auth.yaml#/login'
+  /api/v1/auth/refresh:
+    $ref: './paths/auth.yaml#/refresh'
+  /api/v1/auth/logout:
+    $ref: './paths/auth.yaml#/logout'
+
+  /api/v1/users/me:
+    $ref: './paths/users.yaml#/me'
+
+  /api/v1/tracks:
+    $ref: './paths/tracks.yaml#/tracks'
+  /api/v1/tracks/search:
+    $ref: './paths/tracks.yaml#/search'
+  /api/v1/tracks/genres:
+    $ref: './paths/tracks.yaml#/genres'
+  /api/v1/tracks/{id}:
+    $ref: './paths/tracks.yaml#/trackByID'
+  /api/v1/tracks/{id}/play:
+    $ref: './paths/tracks.yaml#/play'
+
+  /api/v1/playlists:
+    $ref: './paths/playlists.yaml#/playlists'
+  /api/v1/playlists/{id}:
+    $ref: './paths/playlists.yaml#/playlistByID'
+  /api/v1/playlists/{id}/tracks:
+    $ref: './paths/playlists.yaml#/playlistTracks'
+  /api/v1/playlists/{playlistID}/tracks/{trackID}:
+    $ref: './paths/playlists.yaml#/playlistTrackByID'
+
+  /api/v1/favorites/tracks:
+    $ref: './paths/favorites.yaml#/favorites'
+  /api/v1/favorites/tracks/{track_id}:
+    $ref: './paths/favorites.yaml#/favoriteByID'
+
+  /api/v1/listening-history:
+    $ref: './paths/history.yaml#/history'
+
+  /api/v1/admin/tracks:
+    $ref: './paths/admin.yaml#/tracks'
+  /api/v1/admin/tracks/{id}:
+    $ref: './paths/admin.yaml#/trackByID'
+  /api/v1/admin/users/{id}/subscription:
+    $ref: './paths/admin.yaml#/userSubscription'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Введите access_token"
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 20
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+    TrackID:
+      name: track_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: './components/schemas/common.yaml#/ErrorResponse'
+    Unauthorized:
+      description: Пользователь не авторизован
+      content:
+        application/json:
+          schema:
+            $ref: './components/schemas/common.yaml#/ErrorResponse'
+    Forbidden:
+      description: Доступ запрещен (недостаточно прав или превышен лимит)
+      content:
+        application/json:
+          schema:
+            $ref: './components/schemas/common.yaml#/ErrorResponse'
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: './components/schemas/common.yaml#/ErrorResponse'
+    Conflict:
+      description: Конфликт (например, email уже занят)
+      content:
+        application/json:
+          schema:
+            $ref: './components/schemas/common.yaml#/ErrorResponse'
+    InternalServerError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: './components/schemas/common.yaml#/ErrorResponse'

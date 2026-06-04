@@ -1,0 +1,77 @@
+tracks:
+  post:
+    tags: ["Администрирование 🛠"]
+    summary: Добавить трек
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/admin.yaml#/CreateTrackRequest'
+    responses:
+      '201':
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/track.yaml#/TrackResponse'
+
+trackByID:
+  put:
+    tags: ["Администрирование 🛠"]
+    summary: Обновить трек
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/admin.yaml#/UpdateTrackRequest'
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/track.yaml#/TrackResponse'
+  delete:
+    tags: ["Администрирование 🛠"]
+    summary: Удалить трек (soft delete)
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Удалено
+
+userSubscription:
+  patch:
+    tags: ["Администрирование 🛠"]
+    summary: Изменить подписку пользователя
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/admin.yaml#/UpdateSubscriptionRequest'
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/user.yaml#/UserResponse'

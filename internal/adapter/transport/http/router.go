@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/middleware"
+	"github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/swagger"
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1"
 )
 
@@ -25,6 +26,8 @@ func NewRouter(
 	r.Use(middleware.Logger(logger))
 	r.Use(middleware.Recover)
 	r.Use(middleware.Auth(tokenManager, blacklist))
+
+	swagger.RegisterRoutes(r)
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

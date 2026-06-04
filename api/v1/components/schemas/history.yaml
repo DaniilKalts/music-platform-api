@@ -1,0 +1,13 @@
+HistoryRecordResponse:
+  type: object
+  properties:
+    track_id:
+      type: string
+      format: uuid
+    title:
+      type: string
+    artist_name:
+      type: string
+    listened_at:
+      type: string
+      format: date-time

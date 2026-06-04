@@ -1,0 +1,74 @@
+register:
+  post:
+    tags: ["Аутентификация 🔐"]
+    summary: Регистрация
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/auth.yaml#/RegisterRequest'
+    responses:
+      '201':
+        description: Успешная регистрация
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/user.yaml#/UserResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/BadRequest'
+      '409':
+        $ref: '../openapi.yaml#/components/responses/Conflict'
+
+login:
+  post:
+    tags: ["Аутентификация 🔐"]
+    summary: Вход в систему
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/auth.yaml#/LoginRequest'
+    responses:
+      '200':
+        description: Успешный вход
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/auth.yaml#/TokenPairResponse'
+      '401':
+        $ref: '../openapi.yaml#/components/responses/Unauthorized'
+
+refresh:
+  post:
+    tags: ["Аутентификация 🔐"]
+    summary: Обновление токенов
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/auth.yaml#/RefreshRequest'
+    responses:
+      '200':
+        description: Токены обновлены
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/auth.yaml#/TokenPairResponse'
+      '401':
+        $ref: '../openapi.yaml#/components/responses/Unauthorized'
+
+logout:
+  post:
+    tags: ["Аутентификация 🔐"]
+    summary: Выход
+    responses:
+      '204':
+        description: Успешный выход
+      '401':
+        $ref: '../openapi.yaml#/components/responses/Unauthorized'

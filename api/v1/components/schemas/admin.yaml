@@ -1,0 +1,45 @@
+CreateTrackRequest:
+  type: object
+  required: [title, artist_name, album_name, genre_id, duration_seconds, file_url]
+  properties:
+    title:
+      type: string
+    artist_name:
+      type: string
+    album_name:
+      type: string
+    genre_id:
+      type: string
+      format: uuid
+    duration_seconds:
+      type: integer
+    file_url:
+      type: string
+      format: uri
+
+UpdateTrackRequest:
+  type: object
+  required: [title, artist_name, album_name, genre_id, duration_seconds, file_url]
+  properties:
+    title:
+      type: string
+    artist_name:
+      type: string
+    album_name:
+      type: string
+    genre_id:
+      type: string
+      format: uuid
+    duration_seconds:
+      type: integer
+    file_url:
+      type: string
+      format: uri
+
+UpdateSubscriptionRequest:
+  type: object
+  required: [type]
+  properties:
+    type:
+      type: string
+      enum: [FREE, PREMIUM]

@@ -1,0 +1,32 @@
+favorites:
+  get:
+    tags: ["Избранное ⭐"]
+    summary: Список избранного
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/track.yaml#/TrackResponse'
+
+favoriteByID:
+  post:
+    tags: ["Избранное ⭐"]
+    summary: Добавить в избранное
+    parameters:
+      - $ref: '../openapi.yaml#/components/parameters/TrackID'
+    responses:
+      '201':
+        description: Добавлено
+      '403':
+        $ref: '../openapi.yaml#/components/responses/Forbidden'
+  delete:
+    tags: ["Избранное ⭐"]
+    summary: Удалить из избранного
+    parameters:
+      - $ref: '../openapi.yaml#/components/parameters/TrackID'
+    responses:
+      '204':
+        description: Удалено

@@ -1,0 +1,39 @@
+TrackResponse:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    title:
+      type: string
+    artist_id:
+      type: string
+      format: uuid
+    artist_name:
+      type: string
+    album_id:
+      type: string
+      format: uuid
+    album_name:
+      type: string
+    genre_id:
+      type: string
+      format: uuid
+    genre_name:
+      type: string
+    duration_seconds:
+      type: integer
+    file_url:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+
+GenreResponse:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string

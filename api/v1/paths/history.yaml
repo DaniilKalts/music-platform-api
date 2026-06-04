@@ -1,0 +1,15 @@
+history:
+  get:
+    tags: ["История 🕑"]
+    summary: История прослушиваний
+    parameters:
+      - $ref: '../openapi.yaml#/components/parameters/Limit'
+      - $ref: '../openapi.yaml#/components/parameters/Offset'
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas/history.yaml#/HistoryRecordResponse'

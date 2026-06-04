@@ -1,0 +1,38 @@
+RegisterRequest:
+  type: object
+  required: [email, username, password]
+  properties:
+    email:
+      type: string
+      format: email
+    username:
+      type: string
+      minLength: 3
+    password:
+      type: string
+      minLength: 8
+
+LoginRequest:
+  type: object
+  required: [email, password]
+  properties:
+    email:
+      type: string
+      format: email
+    password:
+      type: string
+
+RefreshRequest:
+  type: object
+  required: [refresh_token]
+  properties:
+    refresh_token:
+      type: string
+
+TokenPairResponse:
+  type: object
+  properties:
+    access_token:
+      type: string
+    refresh_token:
+      type: string

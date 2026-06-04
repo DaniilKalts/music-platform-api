@@ -1,0 +1,26 @@
+me:
+  get:
+    tags: ["Профиль 👤"]
+    summary: Получить профиль
+    responses:
+      '200':
+        description: Данные профиля
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/user.yaml#/UserResponse'
+  patch:
+    tags: ["Профиль 👤"]
+    summary: Обновить профиль
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/user.yaml#/UpdateUserRequest'
+    responses:
+      '200':
+        description: Профиль обновлен
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/user.yaml#/UserResponse'
