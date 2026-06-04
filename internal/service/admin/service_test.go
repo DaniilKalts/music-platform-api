@@ -2,6 +2,8 @@ package admin_test
 
 import (
 	"context"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -48,12 +50,24 @@ func (m *mockTrackCache) Delete(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
+type mockFileStorage struct{ mock.Mock }
+
+func (m *mockFileStorage) Upload(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error) {
+	args := m.Called(ctx, filename, reader, size, contentType)
+	return args.String(0), args.Error(1)
+}
+func (m *mockFileStorage) Delete(ctx context.Context, fileURL string) error {
+	args := m.Called(ctx, fileURL)
+	return args.Error(0)
+}
+
 func TestCreateTrack(t *testing.T) {
 	ctx := context.Background()
 	mTrack := new(mockTrackRepo)
 	mUser := new(mockUserRepo)
 	mCache := new(mockTrackCache)
-	s := service.NewService(mTrack, mUser, mCache)
+	mStorage := new(mockFileStorage)
+	s := service.NewService(mTrack, mUser, mCache, mStorage)
 
 	input := service.CreateTrackInput{
 		Title:           "Song",
@@ -61,16 +75,24 @@ func TestCreateTrack(t *testing.T) {
 		AlbumName:       "Album",
 		GenreID:         uuid.New(),
 		DurationSeconds: 180,
-		FileURL:         "http://example.com/file.mp3",
+		File:            strings.NewReader("audio-bytes"),
+		FileSize:        11,
+		ContentType:     "audio/mpeg",
+		Filename:        "song.mp3",
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		mTrack.On("CreateTrackWithDependencies", ctx, input.Title, input.ArtistName, input.AlbumName, input.GenreID, input.DurationSeconds, input.FileURL).
+		fileURL := "http://example.com/song.mp3"
+		mStorage.On("Upload", ctx, input.Filename, input.File, input.FileSize, input.ContentType).
+			Return(fileURL, nil)
+		mTrack.On("CreateTrackWithDependencies", ctx, input.Title, input.ArtistName, input.AlbumName, input.GenreID, input.DurationSeconds, fileURL).
 			Return(&track.Track{ID: uuid.New()}, nil)
 
 		res, err := s.CreateTrack(ctx, input)
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
+		mStorage.AssertExpectations(t)
+		mTrack.AssertExpectations(t)
 	})
 }
 
@@ -79,7 +101,8 @@ func TestDeleteTrack(t *testing.T) {
 	mTrack := new(mockTrackRepo)
 	mUser := new(mockUserRepo)
 	mCache := new(mockTrackCache)
-	s := service.NewService(mTrack, mUser, mCache)
+	mStorage := new(mockFileStorage)
+	s := service.NewService(mTrack, mUser, mCache, mStorage)
 	id := uuid.New()
 
 	t.Run("Success", func(t *testing.T) {
