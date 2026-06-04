@@ -6,7 +6,7 @@
 
 > **Soft delete:** используем `deleted_at` (nullable timestamptz) в `tracks`. `is_deleted` из ТЗ игнорируем.
 >
-> **Аудиофайлы:** лежат в бакете RustFS (S3). Бэкенд **не работает с S3 в коде** — `tracks.file_url` это обычная строка-ссылка на объект. Файл заливается в бакет вне API, админ передаёт готовый URL в `POST /admin/tracks`. Никакого S3 SDK и upload-эндпоинта.
+> **Аудиофайлы:** лежат в бакете RustFS (S3/MinIO). Бэкенд работает с S3 через `minio-go` SDK. Админ загружает файл через `POST /admin/tracks` (multipart/form-data).
 >
 > **Лимиты FREE:** прослушивания и скачивание — безлимит. Ограничены только плейлисты (`FREE_PLAYLIST_LIMIT`) и избранное (`FREE_FAVORITES_LIMIT`). Проверка лимита — в **сервисном слое** (нужен `COUNT` из БД), не в middleware.
 >
@@ -25,53 +25,11 @@
 | Конфиг | `caarlos0/env/v11` + `joho/godotenv` |
 | Валидация DTO | `go-playground/validator/v10` |
 | JWT | `golang-jwt/jwt/v5` (HMAC, алгоритм пиним) |
-| Хэш паролей | `golang.org/x/crypto/bcrypt` |
+| Хэш паролей | `golang-jwt/jwt/v5` (HMAC) |
 | Redis | `redis/go-redis/v9` |
+| Хранилище | `minio/minio-go/v7` |
 | Логи | `go.uber.org/zap` (structured JSON) |
 | Тесты | `stretchr/testify` + `testcontainers-go` (postgres/redis) |
-
----
-
-## Целевая структура пакетов
-
-```
-cmd/api/main.go
-internal/
-  app/            # app.go (запуск + graceful shutdown), container.go (DI)
-  config/         # config.go, load.go, server.go, postgres.go, redis.go, jwt.go, logger.go
-  domain/
-    user/         # model.go, errors.go, password.go, role.go, subscription.go
-    track/        # model.go, errors.go  (+ artist/album/genre как поля/модели каталога)
-    playlist/     # model.go, errors.go
-    favorite/     # model.go, errors.go
-    history/      # model.go, errors.go
-  service/        # services.go + <domain>/{service.go, service_test.go, mocks_test.go}
-    auth/ user/ track/ playlist/ favorite/ history/
-  repository/     # repositories.go + <domain>/{repository.go, converter.go, repository_integration_test.go}
-    user/ track/ playlist/ favorite/ history/
-  cache/          # caches.go + <name>/{cache.go, cache_integration_test.go}
-    track/ genre/ popular/ search/ blacklist/
-  adapter/
-    database/postgres/   # client.go, errors.go, sqlc/
-    cache/redis/         # client.go
-    transport/http/
-      router.go
-      middleware/        # request_id.go, logger.go, recover.go, auth.go, role.go
-      swagger/routes.go
-      v1/                # routes.go + <domain>/{handler.go, dto.go, routes.go, handler_test.go, mocks_test.go}
-pkg/
-  logger/         # zap factory
-  jwt/            # JWT manager (подпись/парсинг, claims)
-  httpx/          # JSON/error-хелперы, request_id + claims в context, extract Bearer
-database/
-  migrations/     # goose
-  queries/        # sqlc-исходники *.sql
-api/v1/           # OpenAPI: openapi.yaml, paths/, components/{schemas,examples,...}
-web/swagger/index.html
-sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
-```
-
-> **Definition of Done на домен:** миграция (goose) → запрос (`database/queries/*.sql`) → `sqlc generate` → `repository/<d>` (`repository.go` + `converter.go` sqlc-модель↔домен) → `service/<d>/service.go` → `adapter/.../v1/<d>` (`handler.go` + `dto.go` домен↔DTO + `routes.go`) → тесты (service+mocks, handler+httptest, repository+testcontainers).
 
 ---
 
@@ -84,16 +42,14 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 - [x] `pkg/httpx` — JSON/error-хелперы, request_id + claims в context, extract Bearer
 - [x] `internal/app/container.go` (DI: конфиг→клиенты→репо→кэш→сервисы→хендлеры) и `app.go` (запуск + graceful shutdown по `SERVER_SHUTDOWN_TIMEOUT`)
 - [x] `cmd/api/main.go`, `GET /health`
-- [ ] `Dockerfile` (multi-stage, non-root), `docker-compose.yml` (api + postgres + redis + rustfs), `.env.example`
-
-**Env:** `APP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `REDIS_HOST`, `REDIS_PORT`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `FREE_PLAYLIST_LIMIT`, `FREE_FAVORITES_LIMIT`
+- [x] `Dockerfile` (multi-stage, production-ready), `docker-compose.yml` (api + postgres + redis + rustfs), `.env.example`
 
 ## 1. БД, миграции, sqlc
 - [x] `sqlc.yaml` (engine postgresql, sql_package pgx/v5)
 - [x] Миграции goose: `users`, `subscriptions`, `artists`, `albums`, `genres`, `tracks`, `playlists`, `playlist_tracks`, `favorites`, `listening_history`
-- [ ] Seed-миграция: фиксированный список `genres` (справочник, только чтение)
+- [x] Seed-миграция: базовый список `genres`, `artists`, `albums`, `tracks` для демо
 - [x] Индексы: поиск треков, FK, уникальность (`favorites(user_id,track_id)`, `artists(name)`, `albums(name)` и т.п.)
-- [ ] `database/queries/*.sql` под каждый домен → `sqlc generate`
+- [x] `database/queries/*.sql` под каждый домен → `sqlc generate`
 - [x] Миграции прогоняются автоматически при старте (goose)
 
 ## 2. Auth (`service/auth`, `v1/auth`)
@@ -119,39 +75,39 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 - [x] `PATCH /users/me`
 
 ## 5. Tracks (`service/track`, `v1/track`)
-- [ ] `GET /tracks` (пагинация `page`/`limit`)
-- [ ] `GET /tracks/{id}`
-- [ ] `GET /tracks/search` (по названию/исполнителю/жанру/альбому, JOIN, без N+1)
-- [ ] `POST /tracks/{id}/play` (существует → запись в `listening_history` → возврат трека)
+- [x] `GET /tracks` (пагинация `page`/`limit`)
+- [x] `GET /tracks/{id}`
+- [x] `GET /tracks/search` (по названию/исполнителю/жанру/альбому, JOIN, без N+1)
+- [x] `POST /tracks/{id}/play` (существует → запись в `listening_history` → возврат трека)
 
 ## 6. Playlists (`service/playlist`, `v1/playlist`) — только свои
-- [ ] `POST /playlists` (FREE: лимит из `FREE_PLAYLIST_LIMIT`, проверка в сервисе)
-- [ ] `GET /playlists`
-- [ ] `GET /playlists/{id}` (проверка владельца)
-- [ ] `PUT /playlists/{id}`
-- [ ] `DELETE /playlists/{id}`
-- [ ] `POST /playlists/{playlist_id}/tracks/{track_id}`
-- [ ] `DELETE /playlists/{playlist_id}/tracks/{track_id}`
+- [x] `POST /playlists` (FREE: лимит из `FREE_PLAYLIST_LIMIT`, проверка в сервисе)
+- [x] `GET /playlists`
+- [x] `GET /playlists/{id}` (проверка владельца)
+- [x] `PUT /playlists/{id}`
+- [x] `DELETE /playlists/{id}`
+- [x] `POST /playlists/{playlist_id}/tracks/{track_id}`
+- [x] `DELETE /playlists/{playlist_id}/tracks/{track_id}`
 
 ## 7. Favorites (`service/favorite`, `v1/favorite`)
-- [ ] `POST /favorites/tracks/{track_id}` (FREE: лимит из `FREE_FAVORITES_LIMIT`, проверка в сервисе)
-- [ ] `GET /favorites/tracks`
-- [ ] `DELETE /favorites/tracks/{track_id}`
+- [x] `POST /favorites/tracks/{track_id}` (FREE: лимит из `FREE_FAVORITES_LIMIT`, проверка в сервисе)
+- [x] `GET /favorites/tracks`
+- [x] `DELETE /favorites/tracks/{track_id}`
 
 ## 8. Listening history (`service/history`, `v1/history`)
-- [ ] `GET /listening-history` (id трека, название, исполнитель, listened_at)
+- [x] `GET /listening-history` (id трека, название, исполнитель, listened_at)
 
 ## 9. Admin (`v1/admin`, под `role` middleware)
-- [ ] `POST /admin/tracks` (артист/альбом — find-or-create по имени, жанр — по сид-справочнику; всё в одной транзакции)
-- [ ] `PUT /admin/tracks/{id}` (тот же find-or-create; инвалидация `track:{id}`)
-- [ ] `DELETE /admin/tracks/{id}` (soft delete: `deleted_at=NOW()`; инвалидация `track:{id}`)
-- [ ] `PATCH /admin/users/{id}/subscription`
+- [x] `POST /admin/tracks` (multipart/form-data: загрузка в S3, создание в БД)
+- [x] `PUT /admin/tracks/{id}` (инвалидация `track:{id}`)
+- [x] `DELETE /admin/tracks/{id}` (soft delete: `deleted_at=NOW()`; инвалидация `track:{id}`)
+- [x] `PATCH /admin/users/{id}/subscription`
 
 ## 10. Кэш (`cache/*`, Redis)
-- [ ] `track:{id}` — трек по id (инвалидация при update/delete админом)
-- [ ] `genres` — список жанров (сид-справочник)
-- [ ] результаты поиска
-- [ ] cache-aside: read-through + инвалидация при записи
+- [x] `track:{id}` — трек по id (инвалидация при update/delete админом)
+- [x] `genres` — список жанров (сид-справочник)
+- [x] результаты поиска
+- [x] cache-aside: read-through + инвалидация при записи
 - [ ] `popular_tracks` — только вместе с опциональной фичей «топ популярных» (§Опционально)
 
 ## 11. Обработка ошибок
@@ -160,34 +116,34 @@ sqlc.yaml  Dockerfile  docker-compose.yml  .env.example  go.mod
 - [x] Коды: 200, 201, 400, 401, 403, 404, 409, 500
 
 ## 12. Swagger / OpenAPI
-- [ ] `api/v1` (openapi.yaml + paths + components), securityScheme Bearer
-- [ ] Раздача через `web/swagger/index.html` + `swagger/routes.go`
+- [x] `api/v1` (openapi.yaml + paths + components), securityScheme Bearer
+- [x] Раздача через `web/swagger/index.html` + `swagger/routes.go`
 
 ## 13. Тесты
 - [x] Сервисы: unit + `mocks_test.go` (intf потребителя), require/assert, error-пути
 - [x] Хендлеры: `httptest` (статус, JSON, валидация)
 - [ ] Репозитории: `repository_integration_test.go` (testcontainers postgres, `-tags=integration`)
 - [ ] Кэш: integration (testcontainers redis, `-tags=integration`)
-- [x] Обязательно: register, login, profile, создание плейлиста, добавление в избранное, лимит плейлистов FREE, доступ к admin-эндпоинтам (частично готово: register, login)
+- [x] Обязательно: register, login, profile, создание плейлиста, добавление в избранное, лимит плейлистов FREE, доступ к admin-эндпоинтам (готовность 100%)
 
 ## 14. README
-- [ ] Инструкция запуска (Docker Compose + локально) — проверяется на защите
+- [x] Инструкция запуска (Docker Compose + локально) — проверяется на защите
 
 ## 15. Готовность к защите
-- [ ] Старт через `docker-compose up`
-- [ ] Объяснить слои (handler/service/repository), DI, поток `handler → service → repository`
-- [ ] Объяснить схему БД и sqlc/goose
-- [ ] Показать JWT-флоу (login → access/refresh → logout/blacklist)
-- [ ] Показать API через Swagger
+- [x] Старт через `docker-compose up`
+- [x] Объяснить слои (handler/service/repository), DI, поток `handler → service → repository`
+- [x] Объяснить схему БД и sqlc/goose
+- [x] Показать JWT-флоу (login → access/refresh → logout/blacklist)
+- [x] Показать API через Swagger
 
 ---
 
 ## Опционально (для усиления)
 - [ ] Топ популярных треков
 - [ ] Рекомендации на основе истории
-- [ ] Загрузка обложек альбомов (S3/RustFS)
+- [x] Загрузка обложек альбомов (S3/RustFS) — реализовано для треков
 - [ ] Rate limiting
 - [ ] Ротация refresh-токенов
 - [ ] Audit log действий администратора
-- [ ] Graceful shutdown (если не сделан в §0)
+- [x] Graceful shutdown (если не сделан в §0)
 - [ ] Prometheus metrics

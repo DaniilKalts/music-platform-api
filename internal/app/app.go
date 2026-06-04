@@ -40,6 +40,7 @@ func NewApp(cfg *config.Config, logger *zap.Logger) (*App, error) {
 		c.TokenManager,
 		c.Caches.Blacklist,
 		c.Config.Server.HandlerTimeout,
+		c.Config.Server.CORSAllowedOrigins,
 	)
 
 	return &App{

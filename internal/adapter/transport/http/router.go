@@ -19,9 +19,11 @@ func NewRouter(
 	tokenManager middleware.TokenManager,
 	blacklist middleware.Blacklist,
 	handlerTimeout time.Duration,
+	corsAllowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
 
+	r.Use(middleware.CORS(corsAllowedOrigins))
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger(logger))
 	r.Use(middleware.Recover)
