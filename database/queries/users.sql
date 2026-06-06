@@ -6,9 +6,13 @@ RETURNING id, email, username, role, subscription_type, created_at, updated_at;
 -- name: GetUserCredentialsByEmail :one
 SELECT id,
        email,
+       username,
        password_hash,
        salt,
-       role
+       role,
+       subscription_type,
+       created_at,
+       updated_at
 FROM users
 WHERE email = $1;
 

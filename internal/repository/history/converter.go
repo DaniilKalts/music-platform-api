@@ -8,14 +8,10 @@ import (
 func toDomainHistoryRecordFromList(row sqlc.ListListeningHistoryByUserIDRow) *history.HistoryRecord {
 	return &history.HistoryRecord{
 		ID:         row.ID,
-		UserID:     uuidNil(),
+		UserID:     row.UserID,
 		TrackID:    row.TrackID,
 		TrackTitle: row.Title,
 		ArtistName: row.ArtistName,
 		ListenedAt: row.ListenedAt,
 	}
-}
-
-func uuidNil() [16]byte {
-	return [16]byte{}
 }

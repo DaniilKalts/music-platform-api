@@ -69,11 +69,15 @@ func (r *Repository) GetCredentialsByEmail(ctx context.Context, email string) (*
 		return nil, user.Password{}, fmt.Errorf("get user credentials by email: %w", err)
 	}
 
-	u := &user.User{
-		ID:    row.ID,
-		Email: row.Email,
-		Role:  user.Role(row.Role),
-	}
+	u := toDomain(userRow{
+		ID:               row.ID,
+		Email:            row.Email,
+		Username:         row.Username,
+		Role:             row.Role,
+		SubscriptionType: row.SubscriptionType,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
+	})
 	password := user.Password{Hash: row.PasswordHash, Salt: row.Salt}
 
 	return u, password, nil

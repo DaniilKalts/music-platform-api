@@ -11,6 +11,7 @@ RETURNING id, user_id, track_id, listened_at;
 
 -- name: ListListeningHistoryByUserID :many
 SELECT h.id,
+       h.user_id,
        t.id AS track_id,
        t.title,
        ar.name AS artist_name,
