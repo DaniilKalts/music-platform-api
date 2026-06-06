@@ -8,9 +8,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	tracktransport "github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1/track"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/favorite"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/track"
-	tracktransport "github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1/track"
 	"github.com/DaniilKalts/music-platform-api/pkg/httpx"
 )
 

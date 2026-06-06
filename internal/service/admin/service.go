@@ -109,8 +109,6 @@ func (s *Service) UpdateUserSubscription(ctx context.Context, id uuid.UUID, sub 
 	return s.userRepo.UpdateSubscription(ctx, id, sub)
 }
 
-// objectKey builds a unique, flat storage key so client-supplied filenames
-// cannot collide with existing objects or contain path separators.
 func objectKey(filename string) string {
 	ext := strings.ToLower(filepath.Ext(filepath.Base(filename)))
 	return uuid.New().String() + ext

@@ -9,11 +9,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	tracktransport "github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1/track"
+	usertransport "github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1/user"
 	domaintrack "github.com/DaniilKalts/music-platform-api/internal/domain/track"
 	domainuser "github.com/DaniilKalts/music-platform-api/internal/domain/user"
 	serviceadmin "github.com/DaniilKalts/music-platform-api/internal/service/admin"
-	tracktransport "github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1/track"
-	usertransport "github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1/user"
 	"github.com/DaniilKalts/music-platform-api/pkg/httpx"
 )
 
@@ -32,8 +32,6 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-// maxTrackUploadBytes caps the whole multipart request body;
-// ParseMultipartForm's argument only limits in-memory buffering, not request size.
 const maxTrackUploadBytes = 64 << 20
 
 func (h *Handler) CreateTrack(w http.ResponseWriter, r *http.Request) {

@@ -112,7 +112,7 @@ func TestPlaylistRepository(t *testing.T) {
 		tr := createTrack("Song")
 
 		t.Run("UpdateOtherUserPlaylist", func(t *testing.T) {
-			p1.UserID = u2.ID // Attempting to change ownership or update as other user
+			p1.UserID = u2.ID
 			_, err := repo.UpdatePlaylist(ctx, p1)
 			assert.ErrorIs(t, err, playlist.ErrPlaylistNotFound)
 		})

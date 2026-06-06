@@ -22,7 +22,7 @@ func SetupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 
 	_, b, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(b), "../../..")
-	
+
 	migrationsPath := filepath.Join(root, "database/migrations")
 	os.Setenv("MIGRATIONS_DIR", migrationsPath)
 

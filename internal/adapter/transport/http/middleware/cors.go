@@ -5,9 +5,6 @@ import (
 	"strings"
 )
 
-// CORS echoes back an allowed Origin and answers preflight (OPTIONS) requests.
-// It must run before Auth so that credential-less preflight requests are not
-// rejected as unauthorized.
 func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	allowed := make(map[string]struct{}, len(allowedOrigins))
 	for _, origin := range allowedOrigins {

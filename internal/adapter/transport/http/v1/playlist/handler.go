@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	tracktransport "github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1/track"
 	domainplaylist "github.com/DaniilKalts/music-platform-api/internal/domain/playlist"
 	domaintrack "github.com/DaniilKalts/music-platform-api/internal/domain/track"
 	serviceplaylist "github.com/DaniilKalts/music-platform-api/internal/service/playlist"
-	tracktransport "github.com/DaniilKalts/music-platform-api/internal/adapter/transport/http/v1/track"
 	"github.com/DaniilKalts/music-platform-api/pkg/httpx"
 )
 
