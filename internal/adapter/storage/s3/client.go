@@ -14,8 +14,9 @@ import (
 )
 
 type Client struct {
-	minio  *minio.Client
-	bucket string
+	minio     *minio.Client
+	bucket    string
+	publicURL string
 }
 
 func NewClient(ctx context.Context, cfg *config.S3) (*Client, error) {
@@ -44,8 +45,9 @@ func NewClient(ctx context.Context, cfg *config.S3) (*Client, error) {
 	}
 
 	return &Client{
-		minio:  client,
-		bucket: cfg.Bucket,
+		minio:     client,
+		bucket:    cfg.Bucket,
+		publicURL: strings.TrimRight(cfg.PublicURL, "/"),
 	}, nil
 }
 
@@ -57,10 +59,7 @@ func (c *Client) Upload(ctx context.Context, filename string, reader io.Reader, 
 		return "", fmt.Errorf("put object: %w", err)
 	}
 
-	endpoint := c.minio.EndpointURL()
-	fileURL := fmt.Sprintf("%s/%s/%s", endpoint.String(), c.bucket, filename)
-
-	return fileURL, nil
+	return fmt.Sprintf("%s/%s/%s", c.publicURL, c.bucket, filename), nil
 }
 
 func (c *Client) Delete(ctx context.Context, fileURL string) error {

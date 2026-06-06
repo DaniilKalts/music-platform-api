@@ -16,10 +16,14 @@ SELECT h.id,
        t.title,
        ar.name AS artist_name,
        h.listened_at
-FROM listening_history h
+FROM (
+    SELECT DISTINCT ON (track_id) id, user_id, track_id, listened_at
+    FROM listening_history
+    WHERE user_id = $1
+    ORDER BY track_id, listened_at DESC, id DESC
+) h
 JOIN tracks t ON t.id = h.track_id
 JOIN artists ar ON ar.id = t.artist_id
-WHERE h.user_id = $1
-  AND t.deleted_at IS NULL
+WHERE t.deleted_at IS NULL
 ORDER BY h.listened_at DESC, h.id
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
