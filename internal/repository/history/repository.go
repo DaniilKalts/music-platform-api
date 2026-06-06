@@ -2,8 +2,10 @@ package historyrepo
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres/sqlc"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/history"
@@ -56,5 +58,5 @@ func (r *repository) ListListeningHistoryByUserID(ctx context.Context, userID uu
 }
 
 func isNoRows(err error) bool {
-	return err.Error() == "no rows in result set"
+	return errors.Is(err, pgx.ErrNoRows)
 }

@@ -3,7 +3,6 @@ package track
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -19,8 +18,6 @@ const (
 	trackTTL    = 15 * time.Minute
 	notFoundTTL = 5 * time.Minute
 )
-
-var errTrackNotFoundCached = errors.New("track not found (cached)")
 
 type Cache struct {
 	client *redis.Client
@@ -59,7 +56,7 @@ func (c *Cache) Get(ctx context.Context, id uuid.UUID) (*track.Track, error) {
 	}
 
 	if string(data) == "null" {
-		return nil, errTrackNotFoundCached
+		return nil, track.ErrTrackNotFound
 	}
 
 	var t track.Track

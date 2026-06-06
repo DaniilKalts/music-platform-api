@@ -2,8 +2,10 @@ package favoriterepo
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres/sqlc"
 	"github.com/DaniilKalts/music-platform-api/internal/domain/favorite"
@@ -76,5 +78,5 @@ func (r *repository) FavoriteExists(ctx context.Context, userID, trackID uuid.UU
 }
 
 func isNoRows(err error) bool {
-	return err.Error() == "no rows in result set"
+	return errors.Is(err, pgx.ErrNoRows)
 }

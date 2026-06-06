@@ -2,8 +2,10 @@ package trackrepo
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DaniilKalts/music-platform-api/internal/adapter/database/postgres/sqlc"
@@ -352,5 +354,5 @@ func (r *repository) UpdateTrackWithDependencies(ctx context.Context, id uuid.UU
 }
 
 func isNoRows(err error) bool {
-	return err.Error() == "no rows in result set"
+	return errors.Is(err, pgx.ErrNoRows)
 }

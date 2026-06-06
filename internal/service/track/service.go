@@ -70,7 +70,7 @@ func (s *Service) GetTrack(ctx context.Context, id uuid.UUID) (*track.Track, err
 		return t, nil
 	}
 
-	if err.Error() == "track not found (cached)" {
+	if errors.Is(err, track.ErrTrackNotFound) {
 		return nil, track.ErrTrackNotFound
 	}
 
