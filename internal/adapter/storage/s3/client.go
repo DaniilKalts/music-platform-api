@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"path"
+	"strings"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -69,9 +69,10 @@ func (c *Client) Delete(ctx context.Context, fileURL string) error {
 		return fmt.Errorf("parse url: %w", err)
 	}
 
-	filename := path.Base(u.Path)
+	key := strings.TrimPrefix(u.Path, "/")
+	key = strings.TrimPrefix(key, c.bucket+"/")
 
-	if err := c.minio.RemoveObject(ctx, c.bucket, filename, minio.RemoveObjectOptions{}); err != nil {
+	if err := c.minio.RemoveObject(ctx, c.bucket, key, minio.RemoveObjectOptions{}); err != nil {
 		return fmt.Errorf("remove object: %w", err)
 	}
 

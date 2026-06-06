@@ -32,8 +32,18 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+// maxTrackUploadBytes caps the whole multipart request body;
+// ParseMultipartForm's argument only limits in-memory buffering, not request size.
+const maxTrackUploadBytes = 64 << 20
+
 func (h *Handler) CreateTrack(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxTrackUploadBytes)
+
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			httpx.WriteError(w, http.StatusRequestEntityTooLarge, "file too large")
+			return
+		}
 		httpx.WriteError(w, http.StatusBadRequest, "failed to parse multipart form")
 		return
 	}

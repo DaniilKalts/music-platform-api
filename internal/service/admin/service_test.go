@@ -83,7 +83,14 @@ func TestCreateTrack(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		fileURL := "http://example.com/song.mp3"
-		mStorage.On("Upload", ctx, input.Filename, input.File, input.FileSize, input.ContentType).
+		// Ключ объекта генерируется сервисом: <uuid>.mp3, а не исходное имя файла.
+		mStorage.On("Upload", ctx, mock.MatchedBy(func(key string) bool {
+			if !strings.HasSuffix(key, ".mp3") {
+				return false
+			}
+			_, err := uuid.Parse(strings.TrimSuffix(key, ".mp3"))
+			return err == nil
+		}), input.File, input.FileSize, input.ContentType).
 			Return(fileURL, nil)
 		mTrack.On("CreateTrackWithDependencies", ctx, input.Title, input.ArtistName, input.AlbumName, input.GenreID, input.DurationSeconds, fileURL).
 			Return(&track.Track{ID: uuid.New()}, nil)

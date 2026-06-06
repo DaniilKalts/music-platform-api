@@ -57,6 +57,41 @@ TRACKS=(
   "bach-air-on-g-string.mp3|$IA/Bach-airOnTheGString/LaMusicaClasicaMasRelajanteDelMundo-Bach-AirOnTheGString.mp3"
   # Pachelbel
   "pachelbel-canon.mp3|$IA/PachelbelsCanoninD/Canon_in_D_Piano.mp3"
+
+  # ── Ragtime — Scott Joplin ──
+  "joplin-maple-leaf-rag.mp3|$IA/ScottJoplinRagtime/ScottJoplinMapleLeaf.mp3"
+  "joplin-the-entertainer.mp3|$IA/joplin_ragtime_jop_20_scott_jop/joplin_ragtime_jop_01_the_enter.mp3"
+  "joplin-pine-apple-rag.mp3|$IA/joplin_ragtime_jop_20_scott_jop/joplin_ragtime_jop_02_pine_appl.mp3"
+  "joplin-the-ragtime-dance.mp3|$IA/joplin_ragtime_jop_20_scott_jop/joplin_ragtime_jop_04_the_ragti.mp3"
+  "joplin-elite-syncopations.mp3|$IA/joplin_ragtime_jop_20_scott_jop/joplin_ragtime_jop_07_elite_syn.mp3"
+  # ── Early Jazz ──
+  "odjb-livery-stable-blues.mp3|$IA/OriginalDixielandJassBand/OriginalDixielandJassBand-LiveryStableBlues.mp3"
+  "odjb-tiger-rag.mp3|$IA/78_9903-Tiger-Rag/9903-Tiger-Rag.mp3"
+  "funny-jas-band-from-dixieland.mp3|$IA/fjasband1916/fjasband1916.mp3"
+  # ── Early Blues ──
+  "mamie-smith-crazy-blues.mp3|$IA/MamieSmithHerJazzHounds/MamieSmithHerJazzHounds-CrazyBlues.mp3"
+  "handy-st-louis-blues.mp3|$IA/OriginalDixielandJazzBandwithAlBernard/OriginalDixielandJazzBandwithAlBernard-StLouisBlues.mp3"
+  "handy-memphis-blues.mp3|$IA/Victor_Military_Band-The_Memphis_Blues/Victor_Military_Band-The_Memphis_Blues/Victor_Military_Band-The_Memphis_Blues.mp3"
+  # ── Marches & Opera ──
+  "sousa-stars-and-stripes-forever.mp3|$IA/JOHNPHILIPSOUSAMarches-NEWTRANSFER/01.StarsAndStripesForever.mp3"
+  "sousa-washington-post-march.mp3|$IA/JOHNPHILIPSOUSAMarches-NEWTRANSFER/02.WashingtonPostMarch.mp3"
+  "caruso-o-sole-mio.mp3|$IA/Caruso_part1/Caruso-OSoleMio.mp3"
+  # ── Folk / Americana ──
+  "swing-low-sweet-chariot.mp3|$IA/SwingLowSweetChariot_201609/Swing%20Low%20Sweet%20Chariot.mp3"
+  "old-folks-at-home.mp3|$IA/us-oldfolks/us-oldfolks.mp3"
+  # ── More iconic Classical ──
+  "beethoven-symphony-5.mp3|$IA/SymphonyNo.5Opus67/Symphony%20No.%205%20-%20Opus%2067%2C%201st%20Movement.mp3"
+  "beethoven-symphony-9-ode-to-joy.mp3|$IA/beethoven9/beethoven-9-04-concertgebouw-klemperer-1956-16048.mp3"
+  "bach-brandenburg-3.mp3|$IA/BrandenburgConcertoNo.3InGMajor/BrandenburgConcertoNo.3InGMajor-I.Allegro.mp3"
+  "bach-cello-suite-1-prelude.mp3|$IA/15SuiteNo.4EnMiBemolMajeur/01%20Suite%20no.%201%2C%20en%20sol%20majeur%2C%20pour.mp3"
+  "chopin-nocturne-9-2.mp3|$IA/Chopin-NocturneOp.9No.2/20120420_Chopin_Nocturne_op9-2_amplified.mp3"
+  "grieg-mountain-king.mp3|$IA/16EdvardGriegPeerGyntInTheHallOfTheMountainKing1875/16%20Edvard%20Grieg%20-%20Peer%20Gynt%20In%20The%20Hall%20Of%20The%20Mountain%20King%2C1875.mp3"
+  "saint-saens-danse-macabre.mp3|$IA/DanseMacabreOp.40/Danse%20Macabre%2C%20Op.%2040.mp3"
+  "mozart-symphony-40.mp3|$IA/SymphonyNo.40InGMinor/SymphonyNo.40InGMinorKv.550-I.AllegroModerato.mp3"
+  "rimsky-flight-bumblebee.mp3|$IA/FlightOfTheBumblebee_201310/Flight%20of%20the%20Bumblebee.mp3"
+  "handel-hallelujah.mp3|$IA/HallelujahChorusMessiah/EDIS-SRP-0195-06_hallelujah_chorus.mp3"
+  "debussy-clair-de-lune.mp3|$IA/ClairDeLune_182/Debussy_Clair_de_Lune.mp3"
+  "schubert-ave-maria.mp3|$IA/FranzSchubertAveMaria/Franz%20Schubert_%20Ave%20Maria.mp3"
 )
 
 # Download every track to a temp dir on the host. Doing the fetch here (rather
@@ -65,23 +100,56 @@ TRACKS=(
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
+# Fetch one track into $TMPDIR/$key, verified as real audio. Retries hard:
+# Archive.org's /download/ 302-redirects to per-file storage nodes whose DNS
+# can flap, so we retry the whole fetch several times (curl --retry-all-errors
+# also re-attempts "could not resolve host"). Returns non-zero only if every
+# attempt failed.
+download_one() {
+    local key="$1" url="$2" attempt
+    for attempt in 1 2 3 4 5; do
+        if curl -fsSL --ipv4 --retry 4 --retry-delay 2 --retry-all-errors \
+                --connect-timeout 30 --max-time 600 -o "$TMPDIR/$key" "$url"; then
+            if [ -s "$TMPDIR/$key" ] && \
+               { ! command -v file &> /dev/null || file "$TMPDIR/$key" | grep -qiE "audio|mpeg|mp3"; }; then
+                return 0
+            fi
+        fi
+        echo "     retry $attempt failed for $key" >&2
+        sleep $((attempt * 2))
+    done
+    return 1
+}
+
 echo "Downloading ${#TRACKS[@]} canonical tracks..."
+# A single flaky node must not abort the whole seed: collect failures, keep the
+# rest, and report. Re-running the script picks up any stragglers (idempotent).
+set +e
+ok_tracks=()
+failed_keys=()
 for entry in "${TRACKS[@]}"; do
     key="${entry%%|*}"
     url="${entry#*|}"
     echo "  -> $key"
-    curl -fSL --retry 3 --retry-delay 2 --max-time 300 -o "$TMPDIR/$key" "$url"
-
-    # Sanity-check: non-empty and actually an MPEG audio stream.
-    if [ ! -s "$TMPDIR/$key" ]; then
-        echo "ERROR: $key downloaded empty from $url" >&2
-        exit 1
-    fi
-    if command -v file &> /dev/null && ! file "$TMPDIR/$key" | grep -qiE "audio|mpeg|mp3"; then
-        echo "ERROR: $key does not look like audio (got: $(file -b "$TMPDIR/$key"))" >&2
-        exit 1
+    if download_one "$key" "$url"; then
+        ok_tracks+=("$entry")
+    else
+        echo "  !! FAILED to download $key — skipping" >&2
+        failed_keys+=("$key")
     fi
 done
+set -e
+
+if [ ${#ok_tracks[@]} -eq 0 ]; then
+    echo "ERROR: no tracks downloaded — aborting" >&2
+    exit 1
+fi
+if [ ${#failed_keys[@]} -gt 0 ]; then
+    echo "WARNING: ${#failed_keys[@]} track(s) failed and were skipped: ${failed_keys[*]}" >&2
+    echo "         Re-run ./scripts/seed-s3.sh to retry them." >&2
+fi
+# Upload only what we actually downloaded.
+TRACKS=("${ok_tracks[@]}")
 
 # Build the mc command sequence. Files live in /seed inside the container
 # (or the same temp dir when mc runs locally).

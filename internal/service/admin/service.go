@@ -3,6 +3,8 @@ package admin
 import (
 	"context"
 	"io"
+	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -58,7 +60,7 @@ type CreateTrackInput struct {
 }
 
 func (s *Service) CreateTrack(ctx context.Context, input CreateTrackInput) (*track.Track, error) {
-	fileURL, err := s.storage.Upload(ctx, input.Filename, input.File, input.FileSize, input.ContentType)
+	fileURL, err := s.storage.Upload(ctx, objectKey(input.Filename), input.File, input.FileSize, input.ContentType)
 	if err != nil {
 		return nil, err
 	}
@@ -105,4 +107,11 @@ func (s *Service) DeleteTrack(ctx context.Context, id uuid.UUID) error {
 
 func (s *Service) UpdateUserSubscription(ctx context.Context, id uuid.UUID, sub user.Subscription) (*user.User, error) {
 	return s.userRepo.UpdateSubscription(ctx, id, sub)
+}
+
+// objectKey builds a unique, flat storage key so client-supplied filenames
+// cannot collide with existing objects or contain path separators.
+func objectKey(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filepath.Base(filename)))
+	return uuid.New().String() + ext
 }
