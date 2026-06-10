@@ -76,7 +76,8 @@ Backend-сервис музыкальной платформы.
 │   │   ├── 00001_create_users.sql
 │   │   ├── 00002_enable_pg_trgm.sql
 │   │   ├── ...
-│   │   └── 00011_seed_data.sql
+│   │   ├── 00011_seed_data.sql
+│   │   └── 00012_seed_admin.sql
 │   └── queries/                             # SQL-запросы для sqlc
 │       ├── catalog.sql
 │       ├── favorites.sql
@@ -295,7 +296,8 @@ REDIS_READ_TIMEOUT=3s
 REDIS_WRITE_TIMEOUT=3s
 
 # ─── S3 (RustFS) ─────────────────────────────────────────────
-S3_ENDPOINT=localhost:9000           # Эндпоинт S3 ("rustfs:9000" в Docker)
+S3_ENDPOINT=localhost:9000           # Внутренний эндпоинт S3 ("rustfs:9000" в Docker)
+S3_PUBLIC_URL=http://localhost:9000  # Публичный URL для ссылок на файлы (клиенты)
 S3_ACCESS_KEY=admin
 S3_SECRET_KEY=password
 S3_BUCKET=tracks                     # Бакет с аудиофайлами
@@ -317,7 +319,7 @@ docker-compose up -d --build
 ```
 
 Поднимутся **4 сервиса**: API, PostgreSQL 18, Redis 8.0 и RustFS (S3).
-Миграции БД (включая seed-данные: жанры, исполнители, альбомы, треки) применяются автоматически при старте API.
+Миграции БД (включая seed-данные: жанры, исполнители, альбомы, треки и демо-админ) применяются автоматически при старте API.
 
 #### 4. Наполнить S3 аудиофайлами
 
@@ -325,7 +327,7 @@ docker-compose up -d --build
 ./scripts/seed-s3.sh
 ```
 
-Скрипт скачает public-domain записи (Vivaldi, Beethoven, Mozart, Bach, Pachelbel) с Internet Archive и загрузит их в бакет `tracks` — ключи файлов совпадают с seed-данными миграций.
+Скрипт скачает ~40 public-domain записей с Internet Archive (классика — Vivaldi, Beethoven, Mozart, Bach, Chopin, Debussy и др.; рэгтайм Скотта Джоплина; ранний джаз и блюз; марши Сузы; опера Карузо; фолк) и загрузит их в бакет `tracks` — ключи файлов совпадают с seed-данными миграций. Скрипт идемпотентен: при сбое отдельной загрузки можно перезапустить.
 
 #### 5. Проверить, что всё работает
 
@@ -351,6 +353,8 @@ curl http://localhost:8080/api/v1/tracks
 # Поиск
 curl "http://localhost:8080/api/v1/tracks/search?q=vivaldi"
 ```
+
+> **Демо-админ.** Для проверки эндпоинтов `/admin/*` в БД засеян пользователь с ролью ADMIN: `admin@gmail.com` / `12341234`. Войдите через `POST /api/v1/auth/login` и используйте полученный access-токен.
 
 ---
 
