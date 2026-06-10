@@ -4,6 +4,7 @@ favorites:
     summary: Список избранного
     responses:
       '200':
+        description: Список избранного
         content:
           application/json:
             schema:

@@ -77,9 +77,9 @@ paths:
     $ref: './paths/history.yaml#/history'
 
   /api/v1/admin/tracks:
-    $ref: './paths/admin.yaml#/tracks'
+    $ref: './paths/admin.yaml#/adminTracks'
   /api/v1/admin/tracks/{id}:
-    $ref: './paths/admin.yaml#/trackByID'
+    $ref: './paths/admin.yaml#/adminTrackByID'
   /api/v1/admin/users/{id}/subscription:
     $ref: './paths/admin.yaml#/userSubscription'
 

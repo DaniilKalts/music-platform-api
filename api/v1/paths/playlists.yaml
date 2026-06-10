@@ -10,6 +10,7 @@ playlists:
             $ref: '../components/schemas/playlist.yaml#/CreatePlaylistRequest'
     responses:
       '201':
+        description: Плейлист создан
         content:
           application/json:
             schema:
@@ -21,6 +22,7 @@ playlists:
     summary: Мои плейлисты
     responses:
       '200':
+        description: Список плейлистов
         content:
           application/json:
             schema:
@@ -41,6 +43,7 @@ playlistByID:
           format: uuid
     responses:
       '200':
+        description: Плейлист
         content:
           application/json:
             schema:
@@ -62,6 +65,7 @@ playlistByID:
             $ref: '../components/schemas/playlist.yaml#/UpdatePlaylistRequest'
     responses:
       '200':
+        description: Плейлист обновлён
         content:
           application/json:
             schema:
@@ -93,6 +97,7 @@ playlistTracks:
           format: uuid
     responses:
       '200':
+        description: Треки плейлиста
         content:
           application/json:
             schema:

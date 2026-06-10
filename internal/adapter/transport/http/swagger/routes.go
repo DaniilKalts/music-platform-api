@@ -11,12 +11,18 @@ func RegisterRoutes(r chi.Router) {
 		http.Redirect(w, r, "/swagger/", http.StatusMovedPermanently)
 	})
 
-	r.Get("/swagger/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "web/swagger/index.html")
-	})
-
-	r.Route("/swagger", func(r chi.Router) {
-		fs := http.StripPrefix("/swagger/", http.FileServer(http.Dir("api/v1")))
-		r.Handle("/*", fs)
+	// Single wildcard handler so the UI shell and the spec files never collide:
+	// "/swagger/" serves the Swagger UI, every other path is served from the
+	// OpenAPI spec dir (openapi.yaml, paths/, components/).
+	specFiles := http.StripPrefix("/swagger/", http.FileServer(http.Dir("api/v1")))
+	r.Get("/swagger/*", func(w http.ResponseWriter, req *http.Request) {
+		// The spec is multi-file and edited often; never let the browser serve a
+		// stale openapi.yaml / path file, or $ref resolution breaks silently.
+		w.Header().Set("Cache-Control", "no-store, must-revalidate")
+		if req.URL.Path == "/swagger/" {
+			http.ServeFile(w, req, "web/swagger/index.html")
+			return
+		}
+		specFiles.ServeHTTP(w, req)
 	})
 }

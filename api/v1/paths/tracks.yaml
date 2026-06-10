@@ -64,6 +64,7 @@ trackByID:
           format: uuid
     responses:
       '200':
+        description: Трек
         content:
           application/json:
             schema:

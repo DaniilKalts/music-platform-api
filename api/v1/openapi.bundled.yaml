@@ -1,0 +1,776 @@
+openapi: 3.1.0
+info:
+  title: "Music Platform API \U0001F3B5"
+  version: 1.0.0
+  description: |
+    REST API для музыкальной платформы.
+
+    Возможности:
+    * Аутентификация через JWT (Access + Refresh токены)
+    * Управление профилем пользователя
+    * Каталог треков, поиск и история прослушиваний
+    * Плейлисты и избранное (с учетом лимитов подписки)
+    * Администрирование контента и подписок
+servers:
+  - url: 'http://localhost:8080'
+    description: Локальный сервер разработки
+security:
+  - BearerAuth: []
+tags:
+  - name: "Аутентификация \U0001F510"
+    description: 'Регистрация, вход, обновление токенов и выход'
+  - name: "Профиль \U0001F464"
+    description: Управление личными данными текущего пользователя
+  - name: "Треки \U0001F3A7"
+    description: 'Просмотр каталога, поиск и прослушивание'
+  - name: "Плейлисты \U0001F4C3"
+    description: Управление личными плейлистами
+  - name: Избранное ⭐
+    description: Управление списком избранных треков
+  - name: "История \U0001F551"
+    description: Просмотр истории прослушиваний
+  - name: "Администрирование \U0001F6E0"
+    description: Управление каталогом и подписками (только для ADMIN)
+paths:
+  /api/v1/auth/register:
+    post:
+      tags:
+        - "Аутентификация \U0001F510"
+      summary: Регистрация
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - username
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '201':
+          description: Успешная регистрация
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1users~1me/get/responses/200/content/application~1json/schema'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/auth/login:
+    post:
+      tags:
+        - "Аутентификация \U0001F510"
+      summary: Вход в систему
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - "Аутентификация \U0001F510"
+      summary: Обновление токенов
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Токены обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1auth~1login/post/responses/200/content/application~1json/schema'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - "Аутентификация \U0001F510"
+      summary: Выход
+      responses:
+        '204':
+          description: Успешный выход
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/users/me:
+    get:
+      tags:
+        - "Профиль \U0001F464"
+      summary: Получить профиль
+      responses:
+        '200':
+          description: Данные профиля
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                  username:
+                    type: string
+                  role:
+                    type: string
+                    enum:
+                      - USER
+                      - ADMIN
+                  subscription_type:
+                    type: string
+                    enum:
+                      - FREE
+                      - PREMIUM
+                  created_at:
+                    type: string
+                    format: date-time
+    patch:
+      tags:
+        - "Профиль \U0001F464"
+      summary: Обновить профиль
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                  minLength: 3
+      responses:
+        '200':
+          description: Профиль обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1users~1me/get/responses/200/content/application~1json/schema'
+  /api/v1/tracks:
+    get:
+      tags:
+        - "Треки \U0001F3A7"
+      summary: Список треков
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Список треков
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/paths/~1api~1v1~1admin~1tracks/post/responses/201/content/application~1json/schema'
+  /api/v1/tracks/search:
+    get:
+      tags:
+        - "Треки \U0001F3A7"
+      summary: Поиск треков
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Результаты поиска
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/paths/~1api~1v1~1admin~1tracks/post/responses/201/content/application~1json/schema'
+  /api/v1/tracks/genres:
+    get:
+      tags:
+        - "Треки \U0001F3A7"
+      summary: Список жанров
+      responses:
+        '200':
+          description: Список жанров
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+  '/api/v1/tracks/{id}':
+    get:
+      tags:
+        - "Треки \U0001F3A7"
+      summary: Получить трек по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Трек
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1admin~1tracks/post/responses/201/content/application~1json/schema'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  '/api/v1/tracks/{id}/play':
+    post:
+      tags:
+        - "Треки \U0001F3A7"
+      summary: Прослушать трек
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Трек доступен для проигрывания
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1admin~1tracks/post/responses/201/content/application~1json/schema'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/playlists:
+    post:
+      tags:
+        - "Плейлисты \U0001F4C3"
+      summary: Создать плейлист
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Плейлист создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  user_id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags:
+        - "Плейлисты \U0001F4C3"
+      summary: Мои плейлисты
+      responses:
+        '200':
+          description: Список плейлистов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/paths/~1api~1v1~1playlists/post/responses/201/content/application~1json/schema'
+  '/api/v1/playlists/{id}':
+    get:
+      tags:
+        - "Плейлисты \U0001F4C3"
+      summary: Получить плейлист
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Плейлист
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1playlists/post/responses/201/content/application~1json/schema'
+    put:
+      tags:
+        - "Плейлисты \U0001F4C3"
+      summary: Обновить плейлист
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Плейлист обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1playlists/post/responses/201/content/application~1json/schema'
+    delete:
+      tags:
+        - "Плейлисты \U0001F4C3"
+      summary: Удалить плейлист
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено
+  '/api/v1/playlists/{id}/tracks':
+    get:
+      tags:
+        - "Плейлисты \U0001F4C3"
+      summary: Треки в плейлисте
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Треки плейлиста
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/paths/~1api~1v1~1admin~1tracks/post/responses/201/content/application~1json/schema'
+  '/api/v1/playlists/{playlistID}/tracks/{trackID}':
+    post:
+      tags:
+        - "Плейлисты \U0001F4C3"
+      summary: Добавить трек в плейлист
+      parameters:
+        - name: playlistID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: trackID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Добавлено
+    delete:
+      tags:
+        - "Плейлисты \U0001F4C3"
+      summary: Удалить трек из плейлиста
+      parameters:
+        - name: playlistID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: trackID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено
+  /api/v1/favorites/tracks:
+    get:
+      tags:
+        - Избранное ⭐
+      summary: Список избранного
+      responses:
+        '200':
+          description: Список избранного
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/paths/~1api~1v1~1admin~1tracks/post/responses/201/content/application~1json/schema'
+  '/api/v1/favorites/tracks/{track_id}':
+    post:
+      tags:
+        - Избранное ⭐
+      summary: Добавить в избранное
+      parameters:
+        - $ref: '#/components/parameters/TrackID'
+      responses:
+        '201':
+          description: Добавлено
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags:
+        - Избранное ⭐
+      summary: Удалить из избранного
+      parameters:
+        - $ref: '#/components/parameters/TrackID'
+      responses:
+        '204':
+          description: Удалено
+  /api/v1/listening-history:
+    get:
+      tags:
+        - "История \U0001F551"
+      summary: История прослушиваний
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: История прослушиваний
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    track_id:
+                      type: string
+                      format: uuid
+                    title:
+                      type: string
+                    artist_name:
+                      type: string
+                    listened_at:
+                      type: string
+                      format: date-time
+  /api/v1/admin/tracks:
+    post:
+      tags:
+        - "Администрирование \U0001F6E0"
+      summary: Добавить трек
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                artist_name:
+                  type: string
+                album_name:
+                  type: string
+                genre_id:
+                  type: string
+                  format: uuid
+                duration_seconds:
+                  type: integer
+                file:
+                  type: string
+                  format: binary
+              required:
+                - title
+                - artist_name
+                - album_name
+                - genre_id
+                - duration_seconds
+                - file
+      responses:
+        '201':
+          description: Трек загружен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+                  artist_id:
+                    type: string
+                    format: uuid
+                  artist_name:
+                    type: string
+                  album_id:
+                    type: string
+                    format: uuid
+                  album_name:
+                    type: string
+                  genre_id:
+                    type: string
+                    format: uuid
+                  genre_name:
+                    type: string
+                  duration_seconds:
+                    type: integer
+                  file_url:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+  '/api/v1/admin/tracks/{id}':
+    put:
+      tags:
+        - "Администрирование \U0001F6E0"
+      summary: Обновить трек
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - artist_name
+                - album_name
+                - genre_id
+                - duration_seconds
+                - file_url
+              properties:
+                title:
+                  type: string
+                artist_name:
+                  type: string
+                album_name:
+                  type: string
+                genre_id:
+                  type: string
+                  format: uuid
+                duration_seconds:
+                  type: integer
+                file_url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Трек обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1admin~1tracks/post/responses/201/content/application~1json/schema'
+    delete:
+      tags:
+        - "Администрирование \U0001F6E0"
+      summary: Удалить трек (soft delete)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено
+  '/api/v1/admin/users/{id}/subscription':
+    patch:
+      tags:
+        - "Администрирование \U0001F6E0"
+      summary: Изменить подписку пользователя
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - FREE
+                    - PREMIUM
+      responses:
+        '200':
+          description: Подписка обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1api~1v1~1users~1me/get/responses/200/content/application~1json/schema'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Введите access_token
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 20
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+    TrackID:
+      name: track_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/NotFound/content/application~1json/schema'
+    Unauthorized:
+      description: Пользователь не авторизован
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/NotFound/content/application~1json/schema'
+    Forbidden:
+      description: Доступ запрещен (недостаточно прав или превышен лимит)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/NotFound/content/application~1json/schema'
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: track not found
+    Conflict:
+      description: 'Конфликт (например, email уже занят)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/NotFound/content/application~1json/schema'
+    InternalServerError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/NotFound/content/application~1json/schema'

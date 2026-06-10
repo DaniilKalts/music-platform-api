@@ -17,7 +17,7 @@
     <script>
         window.onload = function() {
             window.ui = SwaggerUIBundle({
-                url: "/swagger/openapi.yaml",
+                url: "/swagger/openapi.bundled.yaml?v=1",
                 dom_id: '#swagger-ui',
                 deepLinking: true,
                 presets: [
@@ -27,7 +27,7 @@
                 plugins: [
                     SwaggerUIBundle.plugins.DownloadUrl
                 ],
-                layout: "StandalonePreset"
+                layout: "BaseLayout"
             });
         };
     </script>

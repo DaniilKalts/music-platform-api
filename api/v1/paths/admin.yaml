@@ -1,4 +1,4 @@
-tracks:
+adminTracks:
   post:
     tags: ["Администрирование 🛠"]
     summary: Добавить трек
@@ -26,13 +26,13 @@ tracks:
             required: [title, artist_name, album_name, genre_id, duration_seconds, file]
     responses:
       '201':
-...
-
+        description: Трек загружен
+        content:
           application/json:
             schema:
               $ref: '../components/schemas/track.yaml#/TrackResponse'
 
-trackByID:
+adminTrackByID:
   put:
     tags: ["Администрирование 🛠"]
     summary: Обновить трек
@@ -51,6 +51,7 @@ trackByID:
             $ref: '../components/schemas/admin.yaml#/UpdateTrackRequest'
     responses:
       '200':
+        description: Трек обновлён
         content:
           application/json:
             schema:
@@ -88,6 +89,7 @@ userSubscription:
             $ref: '../components/schemas/admin.yaml#/UpdateSubscriptionRequest'
     responses:
       '200':
+        description: Подписка обновлена
         content:
           application/json:
             schema:
